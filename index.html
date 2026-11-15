@@ -404,6 +404,35 @@
           </table>
         </div>
       </div>
+
+      </div>
+
+      <!-- Perfil Admin: Cambiar Contraseña -->
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm max-w-lg space-y-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Perfil de Administrador — Cambiar Contraseña</h2>
+          <p class="text-xs text-slate-500">Actualiza la clave de acceso del Administrador sin editar el código.</p>
+        </div>
+        <form id="formChangeAdminPass" class="space-y-3">
+          <div>
+            <label for="adminCurrentPass" class="block text-xs font-semibold text-slate-700 mb-1">Contraseña actual</label>
+            <input id="adminCurrentPass" type="password" required placeholder="Ingresa tu clave actual" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="adminNewPass" class="block text-xs font-semibold text-slate-700 mb-1">Nueva contraseña</label>
+              <input id="adminNewPass" type="password" minlength="4" required placeholder="Mínimo 4 caracteres" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            </div>
+            <div>
+              <label for="adminConfirmPass" class="block text-xs font-semibold text-slate-700 mb-1">Confirmar nueva</label>
+              <input id="adminConfirmPass" type="password" minlength="4" required placeholder="Repite la nueva clave" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            </div>
+          </div>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition">
+            Actualizar Contraseña
+          </button>
+        </form>
+      </div>
     </div>
 
     <!-- TAB 5: VISTA EXCEL / IMPRIMIR CIERRE DE CAJA -->
@@ -621,7 +650,16 @@
     const SB_CONFIG_KEY = 'tienda_supabase_cfg_v2';
     const DEFAULT_SB_URL = 'https://lpivjskjemfxfxanfwul.supabase.co';
     const DEFAULT_SB_KEY = 'sb_publishable__C05RkgQsqYE-_0Wm5_pLg_4pBhW8en';
-    const ADMIN_PASS = 'admin123';
+    const ADMIN_PASS_DEFAULT = 'admin123';
+    const ADMIN_PASS_KEY = 'tienda_admin_pass_v1';
+
+    function getAdminPass() {
+      try {
+        return localStorage.getItem(ADMIN_PASS_KEY) || ADMIN_PASS_DEFAULT;
+      } catch (e) {
+        return ADMIN_PASS_DEFAULT;
+      }
+    }
     const PROMO_THRESHOLD = 200;
 
     const DEFAULT_PRODUCTS = [
@@ -1368,7 +1406,7 @@
 
       if (loginRoleMode === 'admin') {
         const pass = document.getElementById('loginAdminPass').value.trim();
-        if (pass !== ADMIN_PASS) {
+        if (pass !== getAdminPass()) {
           document.getElementById('loginAdminError').classList.remove('hidden');
           return;
         }
@@ -1867,6 +1905,27 @@
       saveState();
       renderAll();
       showToast(`Entrada corregida (${oldQty} → ${newQty}). Registrado en Auditoría.`);
+    });
+
+    document.getElementById('formChangeAdminPass').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const cur = document.getElementById('adminCurrentPass').value.trim();
+      const nw = document.getElementById('adminNewPass').value.trim();
+      const cf = document.getElementById('adminConfirmPass').value.trim();
+
+      if (cur !== getAdminPass()) {
+        showToast('La contraseña actual no coincide');
+        return;
+      }
+      if (nw.length < 4 || nw !== cf) {
+        showToast('La nueva contraseña debe coincidir y tener al menos 4 caracteres');
+        return;
+      }
+      try {
+        localStorage.setItem(ADMIN_PASS_KEY, nw);
+      } catch (err) {}
+      e.target.reset();
+      showToast('Contraseña de Administrador actualizada correctamente');
     });
 
     document.getElementById('btnResetDemo').addEventListener('click', () => {
