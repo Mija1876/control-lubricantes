@@ -11,43 +11,44 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-    .tab-active {
-      background-color: #0f172a;
-      color: #ffffff;
-    }
-    .tab-inactive {
-      background-color: #ffffff;
-      color: #475569;
-    }
-    .tab-inactive:hover {
-      background-color: #f1f5f9;
-      color: #0f172a;
-    }
+    .tab-active { background-color: #0f172a; color: #ffffff; }
+    .tab-inactive { background-color: #ffffff; color: #475569; }
+    .tab-inactive:hover { background-color: #f1f5f9; color: #0f172a; }
     @media print {
       body { background: #ffffff !important; }
-      header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase { display: none !important; }
+      header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase, #modalFixEntry { display: none !important; }
       #viewCierre { display: block !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
       #printableSheet { border: none !important; box-shadow: none !important; padding: 0 !important; }
     }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
-  <!-- Login Overlay (3 Turnos: Mañana, Tarde, Noche — sin contraseña) -->
+  <!-- Login Overlay: Usuario Normal (sin contraseña) y Administrador (con contraseña) -->
   <div id="loginOverlay" class="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-5">
       <div>
         <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 mb-2">Control de Caja y Almacén</span>
-        <h2 class="text-xl font-bold text-slate-900">Iniciar Turno</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Selecciona tu turno e ingresa tu nombre para abrir la caja.</p>
+        <h2 class="text-xl font-bold text-slate-900">Iniciar Sesión</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Elige si ingresas a un turno normal o como Administrador.</p>
+      </div>
+
+      <!-- Role Selector -->
+      <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+        <button id="btnRoleUser" type="button" class="py-2 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-xs transition">
+          Usuario de Turno
+        </button>
+        <button id="btnRoleAdmin" type="button" class="py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition">
+          Administrador
+        </button>
       </div>
 
       <form id="formLogin" class="space-y-4">
         <div>
-          <label for="loginResponsable" class="block text-xs font-semibold text-slate-700 mb-1">Responsable del turno</label>
+          <label for="loginResponsable" class="block text-xs font-semibold text-slate-700 mb-1">Nombre del responsable</label>
           <input id="loginResponsable" type="text" required value="MIJAIL" placeholder="Ej. MIJAIL" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
 
-        <div>
+        <div id="shiftSelectorWrap">
           <span class="block text-xs font-semibold text-slate-700 mb-1.5">Selecciona el turno</span>
           <div class="grid grid-cols-3 gap-2" id="shiftSelector">
             <button type="button" data-shift="Turno Mañana (1)" class="shift-btn py-2.5 px-2 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-900 text-xs font-bold text-center transition">
@@ -62,8 +63,18 @@
           </div>
         </div>
 
+        <!-- Password only for Admin -->
+        <div id="adminPassWrap" class="hidden">
+          <div class="flex items-center justify-between mb-1">
+            <label for="loginAdminPass" class="block text-xs font-semibold text-slate-700">Contraseña de Administrador</label>
+            <span class="text-xs text-slate-400">Clave: admin123</span>
+          </div>
+          <input id="loginAdminPass" type="password" placeholder="Ingresa la contraseña" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <p id="loginAdminError" class="hidden text-xs text-rose-600 font-medium mt-1">Contraseña incorrecta. Usa admin123.</p>
+        </div>
+
         <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition shadow-sm">
-          Entrar al Turno
+          Ingresar
         </button>
       </form>
     </div>
@@ -76,6 +87,7 @@
         <div class="flex items-center gap-2 flex-wrap">
           <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Control de Lubricantes, Ofertas y Entradas</h1>
           <span id="dbStatusBadge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">Modo Local</span>
+          <span id="roleStatusBadge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">Usuario</span>
         </div>
         <p class="text-xs text-slate-500">
           Activo: <strong id="headerUserBadge" class="text-indigo-700">MIJAIL — Turno Mañana (1)</strong>
@@ -89,13 +101,16 @@
         <button id="btnOpenAddProduct" type="button" class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold transition shadow-sm">
           + Agregar Stock
         </button>
+        <button id="btnOpenFixEntry" type="button" class="inline-flex items-center px-3 py-2 rounded-lg border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs sm:text-sm font-semibold transition">
+          Corregir Entrada
+        </button>
         <button id="btnGoCierre" type="button" class="inline-flex items-center px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-semibold transition shadow-sm">
           Cierre / Excel
         </button>
         <button id="btnSwitchShift" type="button" class="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
-          Cambiar Turno
+          Salir / Cambiar
         </button>
-        <button id="btnResetDemo" type="button" class="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
+        <button id="btnResetDemo" type="button" class="admin-only hidden inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
           Restablecer Lista
         </button>
       </div>
@@ -106,11 +121,14 @@
       <button id="tabBtnCatalogo" type="button" class="tab-active px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap">
         Productos y Venta (<span id="countProducts">35</span>)
       </button>
-      <button id="tabBtnEntradas" type="button" class="tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap">
+      <button id="tabBtnEntradas" type="button" class="admin-only hidden tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap">
         Entradas / Reposición (<span id="countEntradas">0</span>)
       </button>
-      <button id="tabBtnVentas" type="button" class="tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap">
+      <button id="tabBtnVentas" type="button" class="admin-only hidden tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap">
         Historial de Ventas (<span id="countVentas">0</span>)
+      </button>
+      <button id="tabBtnAdmin" type="button" class="admin-only hidden tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap">
+        Auditoría y Resumen Admin (<span id="countAuditoria">0</span>)
       </button>
       <button id="tabBtnCierre" type="button" class="tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap">
         Vista Excel / Imprimir Cierre
@@ -133,8 +151,8 @@
         <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Productos de Oferta</p>
         <p id="kpiOfferCount" class="text-2xl font-bold text-amber-600 mt-1">2</p>
       </div>
-      <div class="bg-white rounded-xl border border-slate-200 p-3.5">
-        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Turno Actual</p>
+      <div class="admin-only hidden bg-white rounded-xl border border-slate-200 p-3.5">
+        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Vendido (Admin)</p>
         <p id="kpiTotalSalesAmount" class="text-2xl font-bold text-indigo-600 mt-1">S/ 0.00</p>
       </div>
     </div>
@@ -163,7 +181,6 @@
         </div>
 
         <div id="tablesWrapper" class="space-y-5">
-          <!-- Tabla 1: Lubricantes y Aditivos -->
           <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <div class="px-4 py-2.5 bg-slate-800 text-white text-xs font-bold uppercase tracking-wider">
               Lubricantes y Aditivos
@@ -186,7 +203,6 @@
             </div>
           </div>
 
-          <!-- Tabla 2: Códigos O1 al O8 (separados abajo) -->
           <div class="bg-white rounded-xl border border-amber-300 shadow-xs overflow-hidden">
             <div class="px-4 py-2.5 bg-amber-500 text-slate-950 text-xs font-bold uppercase tracking-wider flex items-center justify-between flex-wrap gap-2">
               <span>Productos O1 – O8 (Aguas, Gaseosas y Otros)</span>
@@ -219,9 +235,7 @@
             <h2 class="text-base font-bold text-slate-900">Carrito de Venta</h2>
             <p class="text-xs text-slate-500">Compra &gt; S/ 200.00 = 1 producto oferta gratis</p>
           </div>
-          <button id="btnClearCart" type="button" class="text-xs font-medium text-rose-600 hover:text-rose-700">
-            Vaciar
-          </button>
+          <button id="btnClearCart" type="button" class="text-xs font-medium text-rose-600 hover:text-rose-700">Vaciar</button>
         </div>
 
         <div id="promoBox" class="rounded-xl p-3 border border-slate-200 bg-slate-50 space-y-2">
@@ -269,7 +283,7 @@
       </aside>
     </div>
 
-    <!-- TAB 2: ENTRADAS / REPOSICIÓN -->
+    <!-- TAB 2: ENTRADAS / REPOSICIÓN (SOLO ADMINISTRADOR) -->
     <div id="viewEntradas" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       <div class="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div>
@@ -304,7 +318,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 class="text-base font-bold text-slate-900">Historial de Entradas / Reposiciones</h2>
-            <p class="text-xs text-slate-500">Registro de código, producto, cantidad, turno y responsable</p>
+            <p class="text-xs text-slate-500">Solo visible para Administrador. Puedes corregir cualquier cantidad registrada.</p>
           </div>
           <input id="searchEntradas" type="text" placeholder="Filtrar por producto o responsable..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
@@ -319,6 +333,7 @@
                 <th class="py-2.5 px-3 font-semibold">Stock (Antes → Después)</th>
                 <th class="py-2.5 px-3 font-semibold">Repuesto por</th>
                 <th class="py-2.5 px-3 font-semibold">Nota</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
               </tr>
             </thead>
             <tbody id="entradasTableBody" class="divide-y divide-slate-100"></tbody>
@@ -327,16 +342,71 @@
       </div>
     </div>
 
-    <!-- TAB 3: HISTORIAL DE VENTAS -->
+    <!-- TAB 3: HISTORIAL DE VENTAS (SOLO ADMINISTRADOR) -->
     <div id="viewVentas" class="hidden bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-      <div>
-        <h2 class="text-base font-bold text-slate-900">Historial de Ventas Realizadas</h2>
-        <p class="text-xs text-slate-500">Incluye turno, responsable y producto de oferta gratis por compras mayores a S/ 200.00</p>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Historial de Ventas Realizadas (Solo Admin)</h2>
+          <p class="text-xs text-slate-500">Incluye turno, responsable y producto de oferta gratis por compras mayores a S/ 200.00</p>
+        </div>
+        <select id="filterVentasTurno" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="all">Todos los turnos</option>
+          <option value="Turno Mañana (1)">Turno Mañana (1)</option>
+          <option value="Turno Tarde (2)">Turno Tarde (2)</option>
+          <option value="Turno Noche (3)">Turno Noche (3)</option>
+        </select>
       </div>
       <div id="ventasList" class="space-y-3"></div>
     </div>
 
-    <!-- TAB 4: VISTA EXCEL / IMPRIMIR CIERRE DE CAJA -->
+    <!-- TAB 4: AUDITORÍA Y RESUMEN ADMIN (SOLO ADMINISTRADOR) -->
+    <div id="viewAdmin" class="hidden space-y-6">
+      <!-- Ventas por turno -->
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase">Vendido Turno Mañana</p>
+          <p id="adminSalesM" class="text-xl font-extrabold text-slate-900 mt-1">S/ 0.00</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase">Vendido Turno Tarde</p>
+          <p id="adminSalesT" class="text-xl font-extrabold text-slate-900 mt-1">S/ 0.00</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase">Vendido Turno Noche</p>
+          <p id="adminSalesN" class="text-xl font-extrabold text-slate-900 mt-1">S/ 0.00</p>
+        </div>
+        <div class="bg-indigo-600 rounded-xl p-4 text-white">
+          <p class="text-xs font-semibold text-indigo-100 uppercase">Total General Acumulado</p>
+          <p id="adminSalesTotal" class="text-2xl font-extrabold mt-1">S/ 0.00</p>
+        </div>
+      </div>
+
+      <!-- Log de correcciones y cambios -->
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Registro de Cambios y Correcciones en Entradas</h2>
+          <p class="text-xs text-slate-500">Cada vez que un usuario normal o administrador corrige una cantidad (ej. de 84 a 80), queda auditado aquí.</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-xs uppercase text-slate-500 bg-slate-50">
+                <th class="py-2.5 px-3 font-semibold">Fecha y Hora</th>
+                <th class="py-2.5 px-3 font-semibold">Producto</th>
+                <th class="py-2.5 px-3 font-semibold">Cantidad Anterior → Nueva</th>
+                <th class="py-2.5 px-3 font-semibold">Diferencia</th>
+                <th class="py-2.5 px-3 font-semibold">Modificado por</th>
+                <th class="py-2.5 px-3 font-semibold">Rol</th>
+                <th class="py-2.5 px-3 font-semibold">Motivo</th>
+              </tr>
+            </thead>
+            <tbody id="auditoriaTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: VISTA EXCEL / IMPRIMIR CIERRE DE CAJA -->
     <div id="viewCierre" class="hidden space-y-4">
       <div class="no-print bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -473,12 +543,39 @@
           </div>
         </div>
         <div class="flex items-center justify-end gap-2 pt-2">
-          <button id="btnCancelModal" type="button" class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100">
-            Cancelar
-          </button>
-          <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
-            Agregar al Stock
-          </button>
+          <button id="btnCancelModal" type="button" class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100">Cancelar</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">Agregar al Stock</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Corregir Entrada (Usuario Normal y Admin; el cambio queda auditado para Admin) -->
+  <div id="modalFixEntry" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900">Corregir Cantidad de Entrada</h3>
+        <button id="btnCloseFixModal" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
+      </div>
+      <p class="text-xs text-slate-500">Si ingresaste una cantidad por error (ej. pusiste 84 y era 80), corrígela aquí. El ajuste se reflejará en el stock y quedará registrado para el Administrador.</p>
+      <form id="formFixEntry" class="space-y-3.5">
+        <div>
+          <label for="fixEntrySelect" class="block text-xs font-semibold text-slate-700 mb-1">Entrada a corregir</label>
+          <select id="fixEntrySelect" required class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="fixEntryNewQty" class="block text-xs font-semibold text-slate-700 mb-1">Cantidad correcta</label>
+            <input id="fixEntryNewQty" type="number" min="1" step="1" required placeholder="Ej. 80" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label for="fixEntryReason" class="block text-xs font-semibold text-slate-700 mb-1">Motivo</label>
+            <input id="fixEntryReason" type="text" required placeholder="Ej. Error de conteo" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button id="btnCancelFixModal" type="button" class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100">Cancelar</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold">Guardar Corrección</button>
         </div>
       </form>
     </div>
@@ -492,7 +589,7 @@
         <button id="btnCloseSupabase" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
       </div>
       <p class="text-xs text-slate-500">
-        Ejecuta primero el archivo <strong>supabase_schema.sql</strong> en el SQL Editor de tu proyecto Supabase y pega aquí tus credenciales públicas.
+        Tus credenciales ya están preconfiguradas. Si cambias de proyecto, actualiza aquí la URL (sin <code>/rest/v1/</code>) y la clave pública.
       </p>
       <form id="formSupabase" class="space-y-3.5">
         <div>
@@ -500,20 +597,16 @@
           <input id="sbUrl" type="url" required placeholder="https://xxxxxxxxxxxx.supabase.co" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         </div>
         <div>
-          <label for="sbKey" class="block text-xs font-semibold text-slate-700 mb-1">Anon Public Key</label>
-          <textarea id="sbKey" rows="3" required placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+          <label for="sbKey" class="block text-xs font-semibold text-slate-700 mb-1">Anon / Publishable Key</label>
+          <textarea id="sbKey" rows="3" required placeholder="sb_publishable_..." class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
         </div>
         <div class="flex items-center justify-between gap-2 pt-2">
           <button id="btnDisconnectSupabase" type="button" class="px-3 py-2 rounded-lg border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-50">
             Usar Modo Local
           </button>
           <div class="flex items-center gap-2">
-            <button id="btnCancelSupabase" type="button" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100">
-              Cancelar
-            </button>
-            <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold">
-              Conectar y Sincronizar
-            </button>
+            <button id="btnCancelSupabase" type="button" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold">Conectar y Sincronizar</button>
           </div>
         </div>
       </form>
@@ -524,8 +617,11 @@
   <div id="toast" class="hidden fixed bottom-5 right-5 z-50 max-w-sm bg-slate-900 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg"></div>
 
   <script>
-    const STORAGE_KEY = 'tienda_lubricantes_v5';
-    const SB_CONFIG_KEY = 'tienda_supabase_cfg_v1';
+    const STORAGE_KEY = 'tienda_lubricantes_v6';
+    const SB_CONFIG_KEY = 'tienda_supabase_cfg_v2';
+    const DEFAULT_SB_URL = 'https://lpivjskjemfxfxanfwul.supabase.co';
+    const DEFAULT_SB_KEY = 'sb_publishable__C05RkgQsqYE-_0Wm5_pLg_4pBhW8en';
+    const ADMIN_PASS = 'admin123';
     const PROMO_THRESHOLD = 200;
 
     const DEFAULT_PRODUCTS = [
@@ -568,13 +664,16 @@
 
     let supabaseClient = null;
     let selectedLoginShift = 'Turno Mañana (1)';
+    let loginRoleMode = 'usuario';
+
     let state = {
-      session: { loggedIn: false, responsable: 'MIJAIL', turno: 'Turno Mañana (1)', turnoId: null },
+      session: { loggedIn: false, role: 'usuario', responsable: 'MIJAIL', turno: 'Turno Mañana (1)', turnoId: null },
       products: [],
       cart: {},
       selectedFreeOfferId: null,
       entradas: [],
       ventas: [],
+      auditoria: [],
       shiftCounters: {},
       activeTab: 'catalogo',
       offerOnlyFilter: false
@@ -591,12 +690,13 @@
     function cloneDefaults() {
       const products = JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
       return {
-        session: { loggedIn: false, responsable: 'MIJAIL', turno: 'Turno Mañana (1)', turnoId: null },
+        session: { loggedIn: false, role: 'usuario', responsable: 'MIJAIL', turno: 'Turno Mañana (1)', turnoId: null },
         products,
         cart: {},
         selectedFreeOfferId: null,
         entradas: [],
         ventas: [],
+        auditoria: [],
         shiftCounters: buildShiftCounters(products),
         activeTab: 'catalogo',
         offerOnlyFilter: false
@@ -611,6 +711,7 @@
           if (Array.isArray(parsed.products) && parsed.products.length > 0) {
             state = { ...cloneDefaults(), ...parsed };
             if (!state.shiftCounters) state.shiftCounters = buildShiftCounters(state.products);
+            if (!Array.isArray(state.auditoria)) state.auditoria = [];
             return;
           }
         }
@@ -627,6 +728,7 @@
           selectedFreeOfferId: state.selectedFreeOfferId,
           entradas: state.entradas,
           ventas: state.ventas,
+          auditoria: state.auditoria,
           shiftCounters: state.shiftCounters
         }));
       } catch (e) {}
@@ -645,12 +747,17 @@
 
     async function initSupabaseFromStorage() {
       try {
+        let cfg = { url: DEFAULT_SB_URL, key: DEFAULT_SB_KEY };
         const raw = localStorage.getItem(SB_CONFIG_KEY);
-        if (!raw) return;
-        const cfg = JSON.parse(raw);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.url && parsed.key) {
+            cfg = parsed;
+          }
+        }
+        document.getElementById('sbUrl').value = cfg.url;
+        document.getElementById('sbKey').value = cfg.key;
         if (cfg.url && cfg.key && window.supabase) {
-          document.getElementById('sbUrl').value = cfg.url;
-          document.getElementById('sbKey').value = cfg.key;
           supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
           updateDbStatusBadge();
           await syncFromSupabase();
@@ -689,12 +796,13 @@
 
         const { data: ents, error: errE } = await supabaseClient
           .from('entradas_stock')
-          .select('id, cantidad, stock_antes, stock_despues, responsable, nota, created_at, productos(cd, nombre), turnos(nombre_turno)')
+          .select('id, producto_id, cantidad, stock_antes, stock_despues, responsable, nota, created_at, productos(cd, nombre), turnos(nombre_turno)')
           .order('id', { ascending: false })
-          .limit(50);
+          .limit(60);
         if (!errE && ents) {
           state.entradas = ents.map(e => ({
             id: e.id,
+            productoId: e.producto_id,
             fecha: new Date(e.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
             turno: e.turnos ? e.turnos.nombre_turno : '',
             productoNombre: e.productos ? `${e.productos.cd} — ${e.productos.nombre}` : 'Producto',
@@ -710,7 +818,7 @@
           .from('ventas')
           .select('id, responsable, cliente, total, created_at, turnos(nombre_turno), regalo:productos!ventas_regalo_producto_id_fkey(cd, nombre), venta_detalle(cantidad, precio_unitario, productos(cd, nombre))')
           .order('id', { ascending: false })
-          .limit(50);
+          .limit(60);
         if (!errV && vts) {
           state.ventas = vts.map(v => ({
             id: v.id,
@@ -729,10 +837,29 @@
           }));
         }
 
+        const { data: auds, error: errA } = await supabaseClient
+          .from('auditoria_cambios')
+          .select('id, cantidad_anterior, cantidad_nueva, diferencia, modificado_por, rol, motivo, created_at, productos(cd, nombre)')
+          .order('id', { ascending: false })
+          .limit(60);
+        if (!errA && auds) {
+          state.auditoria = auds.map(a => ({
+            id: a.id,
+            fecha: new Date(a.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+            productoNombre: a.productos ? `${a.productos.cd} — ${a.productos.nombre}` : 'Producto',
+            cantidadAnterior: a.cantidad_anterior,
+            cantidadNueva: a.cantidad_nueva,
+            diferencia: a.diferencia,
+            modificadoPor: a.modificado_por,
+            rol: a.rol,
+            motivo: a.motivo || ''
+          }));
+        }
+
         saveState();
         renderAll();
       } catch (err) {
-        showToast('Error al sincronizar Supabase: ' + (err.message || 'verifica URL/Key'));
+        showToast('Error al sincronizar Supabase: ' + (err.message || 'verifica esquema'));
       }
     }
 
@@ -746,7 +873,7 @@
       el.textContent = msg;
       el.classList.remove('hidden');
       if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => el.classList.add('hidden'), 3400);
+      toastTimer = setTimeout(() => el.classList.add('hidden'), 3500);
     }
 
     function getCartSubtotal() {
@@ -763,52 +890,79 @@
     }
 
     function setTab(tab) {
+      const isAdmin = state.session.role === 'admin';
+      if (!isAdmin && (tab === 'entradas' || tab === 'ventas' || tab === 'admin')) {
+        tab = 'catalogo';
+      }
       state.activeTab = tab;
       document.getElementById('viewCatalogo').classList.toggle('hidden', tab !== 'catalogo');
       document.getElementById('viewEntradas').classList.toggle('hidden', tab !== 'entradas');
       document.getElementById('viewVentas').classList.toggle('hidden', tab !== 'ventas');
+      document.getElementById('viewAdmin').classList.toggle('hidden', tab !== 'admin');
       document.getElementById('viewCierre').classList.toggle('hidden', tab !== 'cierre');
 
       const map = {
         catalogo: 'tabBtnCatalogo',
         entradas: 'tabBtnEntradas',
         ventas: 'tabBtnVentas',
+        admin: 'tabBtnAdmin',
         cierre: 'tabBtnCierre'
       };
       for (const [k, btnId] of Object.entries(map)) {
         const btn = document.getElementById(btnId);
-        btn.className = k === tab
-          ? 'tab-active px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap'
-          : 'tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap';
+        if (btn) {
+          btn.className = (btn.classList.contains('admin-only') ? 'admin-only ' : '') +
+            (!isAdmin && btn.classList.contains('admin-only') ? 'hidden ' : '') +
+            (k === tab
+              ? 'tab-active px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap'
+              : 'tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap');
+        }
       }
     }
 
     function renderSession() {
       const overlay = document.getElementById('loginOverlay');
       overlay.classList.toggle('hidden', state.session.loggedIn);
-      document.getElementById('headerUserBadge').textContent = `${state.session.responsable} — ${state.session.turno}`;
+      const isAdmin = state.session.role === 'admin';
+
+      document.querySelectorAll('.admin-only').forEach(el => {
+        el.classList.toggle('hidden', !isAdmin);
+      });
+
+      const roleBadge = document.getElementById('roleStatusBadge');
+      roleBadge.textContent = isAdmin ? 'Administrador' : 'Usuario de Turno';
+      roleBadge.className = isAdmin
+        ? 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300'
+        : 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200';
+
+      document.getElementById('headerUserBadge').textContent = isAdmin
+        ? `${state.session.responsable} — Modo Administrador`
+        : `${state.session.responsable} — ${state.session.turno}`;
+
       const respInput = document.getElementById('entradaResponsable');
       if (respInput && !respInput.value.trim()) {
         respInput.value = state.session.responsable;
+      }
+
+      if (!isAdmin && (state.activeTab === 'entradas' || state.activeTab === 'ventas' || state.activeTab === 'admin')) {
+        setTab('catalogo');
       }
     }
 
     function renderKPIs() {
       const totalStock = state.products.reduce((acc, p) => acc + p.stock, 0);
       const offerCount = state.products.filter(p => p.cd === 'O1' || p.cd === 'O2').length;
-      const shiftTotalSales = state.products.reduce((acc, p) => {
-        const c = state.shiftCounters[p.id] || { venta: 0 };
-        return acc + (c.venta * p.precio);
-      }, 0);
+      const totalAllSales = state.ventas.reduce((acc, v) => acc + v.total, 0);
 
       document.getElementById('countProducts').textContent = state.products.length;
       document.getElementById('countEntradas').textContent = state.entradas.length;
       document.getElementById('countVentas').textContent = state.ventas.length;
+      document.getElementById('countAuditoria').textContent = state.auditoria.length;
 
       document.getElementById('kpiTotalProducts').textContent = state.products.length;
       document.getElementById('kpiTotalStock').textContent = totalStock;
       document.getElementById('kpiOfferCount').textContent = offerCount;
-      document.getElementById('kpiTotalSalesAmount').textContent = formatMoney(shiftTotalSales);
+      document.getElementById('kpiTotalSalesAmount').textContent = formatMoney(totalAllSales);
     }
 
     function renderCategoryFilter() {
@@ -976,7 +1130,7 @@
       );
 
       if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 text-sm">Aún no hay entradas registradas. Usa el formulario para reponer stock.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 text-sm">Aún no hay entradas registradas.</td></tr>`;
         return;
       }
 
@@ -988,18 +1142,26 @@
           <td class="py-2.5 px-3 text-xs text-slate-600">${e.stockAntes} → <strong class="text-slate-900">${e.stockDespues}</strong></td>
           <td class="py-2.5 px-3 font-semibold text-indigo-700">${e.responsable}</td>
           <td class="py-2.5 px-3 text-xs text-slate-500">${e.nota || '—'}</td>
+          <td class="py-2.5 px-3 text-right">
+            <button data-action="fix-entry" data-id="${e.id}" type="button" class="px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold">
+              Corregir
+            </button>
+          </td>
         </tr>
       `).join('');
     }
 
     function renderVentas() {
       const container = document.getElementById('ventasList');
-      if (state.ventas.length === 0) {
-        container.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">Todavía no se han registrado ventas.</p>';
+      const turnoFilter = document.getElementById('filterVentasTurno').value;
+      const list = state.ventas.filter(v => turnoFilter === 'all' || v.turno === turnoFilter);
+
+      if (list.length === 0) {
+        container.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">Todavía no se han registrado ventas para este filtro.</p>';
         return;
       }
 
-      container.innerHTML = state.ventas.map(v => `
+      container.innerHTML = list.map(v => `
         <div class="rounded-xl border border-slate-200 p-4 space-y-2 bg-slate-50/50">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -1018,17 +1180,49 @@
       `).join('');
     }
 
+    function renderAdminAudit() {
+      let m = 0, t = 0, n = 0, tot = 0;
+      state.ventas.forEach(v => {
+        tot += v.total;
+        if (v.turno === 'Turno Mañana (1)') m += v.total;
+        else if (v.turno === 'Turno Tarde (2)') t += v.total;
+        else if (v.turno === 'Turno Noche (3)') n += v.total;
+      });
+      document.getElementById('adminSalesM').textContent = formatMoney(m);
+      document.getElementById('adminSalesT').textContent = formatMoney(t);
+      document.getElementById('adminSalesN').textContent = formatMoney(n);
+      document.getElementById('adminSalesTotal').textContent = formatMoney(tot);
+
+      const tbody = document.getElementById('auditoriaTableBody');
+      if (state.auditoria.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 text-sm">No hay correcciones ni cambios registrados aún.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = state.auditoria.map(a => {
+        const diffTxt = a.diferencia > 0 ? `+${a.diferencia}` : `${a.diferencia}`;
+        const diffCls = a.diferencia < 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2.5 px-3 text-xs text-slate-500 whitespace-nowrap">${a.fecha}</td>
+            <td class="py-2.5 px-3 font-medium text-slate-900">${a.productoNombre}</td>
+            <td class="py-2.5 px-3 text-xs">${a.cantidadAnterior} → <strong class="text-slate-900">${a.cantidadNueva}</strong></td>
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${diffCls}">${diffTxt}</span></td>
+            <td class="py-2.5 px-3 font-semibold text-indigo-700">${a.modificadoPor}</td>
+            <td class="py-2.5 px-3 text-xs uppercase font-bold ${a.rol === 'admin' ? 'text-amber-700' : 'text-slate-600'}">${a.rol}</td>
+            <td class="py-2.5 px-3 text-xs text-slate-600">${a.motivo || '—'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
     function renderCierreSheet() {
       const lubBody = document.getElementById('sheetLubricantesBody');
       const ofBody = document.getElementById('sheetOfertasBody');
-
       const lubs = state.products.filter(p => p.categoria !== 'Ofertas');
       const offs = state.products.filter(p => p.categoria === 'Ofertas');
 
-      let totalLub = 0;
-      let totalOf = 0;
-      let totalUnidVendidas = 0;
-      let totalOfertasRegaladas = 0;
+      let totalLub = 0, totalOf = 0, totalUnidVendidas = 0, totalOfertasRegaladas = 0;
 
       lubBody.innerHTML = lubs.map(p => {
         const c = state.shiftCounters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
@@ -1128,26 +1322,65 @@
       renderEntradasSelect();
       renderEntradasTable();
       renderVentas();
+      renderAdminAudit();
       renderCierreSheet();
     }
 
-    // Login Listeners
+    // Login Role Switch
+    const btnRoleUser = document.getElementById('btnRoleUser');
+    const btnRoleAdmin = document.getElementById('btnRoleAdmin');
+    const adminPassWrap = document.getElementById('adminPassWrap');
+    const shiftSelectorWrap = document.getElementById('shiftSelectorWrap');
+
+    function setLoginRole(mode) {
+      loginRoleMode = mode;
+      if (mode === 'admin') {
+        btnRoleAdmin.className = 'py-2 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-xs transition';
+        btnRoleUser.className = 'py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition';
+        adminPassWrap.classList.remove('hidden');
+        shiftSelectorWrap.classList.add('hidden');
+      } else {
+        btnRoleUser.className = 'py-2 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-xs transition';
+        btnRoleAdmin.className = 'py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition';
+        adminPassWrap.classList.add('hidden');
+        shiftSelectorWrap.classList.remove('hidden');
+      }
+      document.getElementById('loginAdminError').classList.add('hidden');
+    }
+
+    btnRoleUser.addEventListener('click', () => setLoginRole('usuario'));
+    btnRoleAdmin.addEventListener('click', () => setLoginRole('admin'));
+
     document.getElementById('shiftSelector').addEventListener('click', (e) => {
       const btn = e.target.closest('.shift-btn');
       if (!btn) return;
       selectedLoginShift = btn.dataset.shift;
       document.querySelectorAll('.shift-btn').forEach(b => {
-        if (b === btn) {
-          b.className = 'shift-btn py-2.5 px-2 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-900 text-xs font-bold text-center transition';
-        } else {
-          b.className = 'shift-btn py-2.5 px-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold text-center hover:bg-slate-50 transition';
-        }
+        b.className = b === btn
+          ? 'shift-btn py-2.5 px-2 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-900 text-xs font-bold text-center transition'
+          : 'shift-btn py-2.5 px-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold text-center hover:bg-slate-50 transition';
       });
     });
 
     document.getElementById('formLogin').addEventListener('submit', async (e) => {
       e.preventDefault();
       const resp = document.getElementById('loginResponsable').value.trim().toUpperCase() || 'MIJAIL';
+
+      if (loginRoleMode === 'admin') {
+        const pass = document.getElementById('loginAdminPass').value.trim();
+        if (pass !== ADMIN_PASS) {
+          document.getElementById('loginAdminError').classList.remove('hidden');
+          return;
+        }
+        document.getElementById('loginAdminError').classList.add('hidden');
+        state.session = { loggedIn: true, role: 'admin', responsable: resp, turno: 'Administrador', turnoId: null };
+        document.getElementById('loginAdminPass').value = '';
+        saveState();
+        renderAll();
+        showToast(`Bienvenido Administrador: ${resp}`);
+        return;
+      }
+
       const numTurno = selectedLoginShift.includes('1') ? 1 : selectedLoginShift.includes('2') ? 2 : 3;
       let turnoId = null;
 
@@ -1165,7 +1398,7 @@
         }
       }
 
-      state.session = { loggedIn: true, responsable: resp, turno: selectedLoginShift, turnoId };
+      state.session = { loggedIn: true, role: 'usuario', responsable: resp, turno: selectedLoginShift, turnoId };
       document.getElementById('entradaResponsable').value = resp;
       saveState();
       renderAll();
@@ -1186,7 +1419,7 @@
 
     document.getElementById('formSupabase').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const url = document.getElementById('sbUrl').value.trim();
+      let url = document.getElementById('sbUrl').value.trim().replace(/\/rest\/v1\/?$/i, '');
       const key = document.getElementById('sbKey').value.trim();
       if (!url || !key || !window.supabase) return;
 
@@ -1216,14 +1449,9 @@
     document.getElementById('tabBtnCatalogo').addEventListener('click', () => setTab('catalogo'));
     document.getElementById('tabBtnEntradas').addEventListener('click', () => setTab('entradas'));
     document.getElementById('tabBtnVentas').addEventListener('click', () => setTab('ventas'));
-    document.getElementById('tabBtnCierre').addEventListener('click', () => {
-      renderCierreSheet();
-      setTab('cierre');
-    });
-    document.getElementById('btnGoCierre').addEventListener('click', () => {
-      renderCierreSheet();
-      setTab('cierre');
-    });
+    document.getElementById('tabBtnAdmin').addEventListener('click', () => { renderAdminAudit(); setTab('admin'); });
+    document.getElementById('tabBtnCierre').addEventListener('click', () => { renderCierreSheet(); setTab('cierre'); });
+    document.getElementById('btnGoCierre').addEventListener('click', () => { renderCierreSheet(); setTab('cierre'); });
 
     document.getElementById('btnPrintSheet').addEventListener('click', () => window.print());
     document.getElementById('btnExportExcel').addEventListener('click', exportExcel);
@@ -1235,9 +1463,7 @@
             .from('turnos')
             .update({ estado: 'cerrado', fecha_cierre: new Date().toISOString(), observaciones: obs || null })
             .eq('id', state.session.turnoId);
-        } catch (err) {
-          showToast('Aviso: no se pudo cerrar el turno en Supabase (' + err.message + ')');
-        }
+        } catch (err) {}
       }
       state.shiftCounters = buildShiftCounters(state.products);
       state.session.loggedIn = false;
@@ -1264,11 +1490,9 @@
       const btn = e.target.closest('button[data-action]');
       if (!btn) return;
       const id = Number(btn.dataset.id);
-      const action = btn.dataset.action;
       const prod = state.products.find(p => p.id === id);
       if (!prod) return;
-
-      if (action === 'add-cart') {
+      if (btn.dataset.action === 'add-cart') {
         const current = state.cart[id] || 0;
         if (current < prod.stock) {
           state.cart[id] = current + 1;
@@ -1284,14 +1508,11 @@
       const btn = e.target.closest('button[data-action]');
       if (!btn) return;
       const id = Number(btn.dataset.id);
-      const action = btn.dataset.action;
       const prod = state.products.find(p => p.id === id);
       if (!prod) return;
-
       const current = state.cart[id] || 0;
-      if (action === 'cart-inc' && current < prod.stock) {
-        state.cart[id] = current + 1;
-      } else if (action === 'cart-dec') {
+      if (btn.dataset.action === 'cart-inc' && current < prod.stock) state.cart[id] = current + 1;
+      else if (btn.dataset.action === 'cart-dec') {
         if (current <= 1) delete state.cart[id];
         else state.cart[id] = current - 1;
       }
@@ -1364,7 +1585,6 @@
         }
       }
 
-      // Modo Local
       const itemsSold = [];
       for (const [idStr, qty] of entries) {
         const prod = state.products.find(p => p.id === Number(idStr));
@@ -1405,6 +1625,7 @@
       showToast(regaloNombre ? `Venta registrada con oferta gratis: ${regaloNombre}` : 'Venta registrada correctamente');
     });
 
+    // Admin Entradas Form
     document.getElementById('formEntrada').addEventListener('submit', async (e) => {
       e.preventDefault();
       const prodId = Number(document.getElementById('entradaProducto').value);
@@ -1425,7 +1646,6 @@
             p_nota: nota || null
           });
           if (error) throw error;
-
           if (!state.shiftCounters[prodId]) state.shiftCounters[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
           state.shiftCounters[prodId].reposicion += cantidad;
           document.getElementById('entradaCantidad').value = '';
@@ -1462,11 +1682,13 @@
       document.getElementById('entradaNota').value = '';
       saveState();
       renderAll();
-      showToast(`Entrada registrada: +${cantidad} a ${prod.nombre} por ${responsable}`);
+      showToast(`Entrada registrada: +${cantidad} a ${prod.nombre}`);
     });
 
     document.getElementById('searchEntradas').addEventListener('input', renderEntradasTable);
+    document.getElementById('filterVentasTurno').addEventListener('change', renderVentas);
 
+    // Modal: Agregar Stock
     const modal = document.getElementById('modalProduct');
 
     function populateModalProducts() {
@@ -1551,6 +1773,100 @@
       saveState();
       renderAll();
       showToast(`Stock agregado: +${cantidad} a ${prod.nombre}`);
+    });
+
+    // Modal: Corregir Entrada (Usuario Normal y Admin)
+    const modalFix = document.getElementById('modalFixEntry');
+
+    function openFixModal(preselectedId = null) {
+      const sel = document.getElementById('fixEntrySelect');
+      if (state.entradas.length === 0) {
+        showToast('No hay entradas recientes para corregir.');
+        return;
+      }
+      sel.innerHTML = state.entradas.map(e => `<option value="${e.id}">${e.productoNombre} (+${e.cantidad}) — ${e.fecha}</option>`).join('');
+      if (preselectedId) sel.value = String(preselectedId);
+      const currentEntry = state.entradas.find(e => String(e.id) === sel.value);
+      document.getElementById('fixEntryNewQty').value = currentEntry ? currentEntry.cantidad : '';
+      modalFix.classList.remove('hidden');
+    }
+
+    document.getElementById('btnOpenFixEntry').addEventListener('click', () => openFixModal());
+    document.getElementById('btnCloseFixModal').addEventListener('click', () => modalFix.classList.add('hidden'));
+    document.getElementById('btnCancelFixModal').addEventListener('click', () => modalFix.classList.add('hidden'));
+
+    document.getElementById('entradasTableBody').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action="fix-entry"]');
+      if (!btn) return;
+      openFixModal(btn.dataset.id);
+    });
+
+    document.getElementById('formFixEntry').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const entryId = Number(document.getElementById('fixEntrySelect').value);
+      const newQty = parseInt(document.getElementById('fixEntryNewQty').value, 10);
+      const reason = document.getElementById('fixEntryReason').value.trim();
+      const entry = state.entradas.find(item => item.id === entryId);
+      if (!entry || !newQty || newQty <= 0) return;
+
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient.rpc('corregir_entrada_stock', {
+            p_entrada_id: entryId,
+            p_nueva_cantidad: newQty,
+            p_modificado_por: state.session.responsable,
+            p_rol: state.session.role,
+            p_motivo: reason || 'Corrección de cantidad'
+          });
+          if (error) throw error;
+          const diff = newQty - entry.cantidad;
+          if (state.shiftCounters[entry.productoId]) {
+            state.shiftCounters[entry.productoId].reposicion = Math.max(0, state.shiftCounters[entry.productoId].reposicion + diff);
+          }
+          modalFix.classList.add('hidden');
+          document.getElementById('fixEntryReason').value = '';
+          await syncFromSupabase();
+          showToast('Entrada corregida y registrada para el Administrador');
+          return;
+        } catch (err) {
+          showToast('Error al corregir en Supabase: ' + err.message);
+          return;
+        }
+      }
+
+      const prod = state.products.find(p => p.id === entry.productoId);
+      if (!prod) return;
+      const oldQty = entry.cantidad;
+      const diff = newQty - oldQty;
+      if (prod.stock + diff < 0) {
+        showToast('No se puede corregir porque el stock quedaría negativo');
+        return;
+      }
+
+      prod.stock += diff;
+      entry.cantidad = newQty;
+      entry.stockDespues = entry.stockAntes + newQty;
+      if (state.shiftCounters[prod.id]) {
+        state.shiftCounters[prod.id].reposicion = Math.max(0, state.shiftCounters[prod.id].reposicion + diff);
+      }
+
+      state.auditoria.unshift({
+        id: Date.now(),
+        fecha: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+        productoNombre: entry.productoNombre,
+        cantidadAnterior: oldQty,
+        cantidadNueva: newQty,
+        diferencia: diff,
+        modificadoPor: state.session.responsable,
+        rol: state.session.role,
+        motivo: reason || 'Corrección de cantidad'
+      });
+
+      modalFix.classList.add('hidden');
+      document.getElementById('fixEntryReason').value = '';
+      saveState();
+      renderAll();
+      showToast(`Entrada corregida (${oldQty} → ${newQty}). Registrado en Auditoría.`);
     });
 
     document.getElementById('btnResetDemo').addEventListener('click', () => {
