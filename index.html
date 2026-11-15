@@ -16,7 +16,7 @@
     .tab-inactive:hover { background-color: #f1f5f9; color: #0f172a; }
     @media print {
       body { background: #ffffff !important; }
-      header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase, #modalFixEntry { display: none !important; }
+      header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase, #modalFixEntry, #modalSellConfirm { display: none !important; }
       #viewCierre { display: block !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
       #printableSheet { border: none !important; box-shadow: none !important; padding: 0 !important; }
     }
@@ -65,12 +65,9 @@
 
         <!-- Password only for Admin -->
         <div id="adminPassWrap" class="hidden">
-          <div class="flex items-center justify-between mb-1">
-            <label for="loginAdminPass" class="block text-xs font-semibold text-slate-700">Contraseña de Administrador</label>
-            <span class="text-xs text-slate-400">Clave: admin123</span>
-          </div>
+          <label for="loginAdminPass" class="block text-xs font-semibold text-slate-700 mb-1">Contraseña de Administrador</label>
           <input id="loginAdminPass" type="password" placeholder="Ingresa la contraseña" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <p id="loginAdminError" class="hidden text-xs text-rose-600 font-medium mt-1">Contraseña incorrecta. Usa admin123.</p>
+          <p id="loginAdminError" class="hidden text-xs text-rose-600 font-medium mt-1">Contraseña incorrecta.</p>
         </div>
 
         <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition shadow-sm">
@@ -160,127 +157,71 @@
 
   <!-- Main Content -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-    <!-- TAB 1: PRODUCTOS Y VENTA -->
-    <div id="viewCatalogo" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      <div class="lg:col-span-8 space-y-3">
-        <div class="bg-white rounded-xl border border-slate-200 p-3.5 flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
-          <input id="searchProduct" type="text" placeholder="Buscar por código (ej. A1, O3) o nombre..." class="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <div class="flex items-center gap-2 flex-wrap">
-            <select id="filterCategory" class="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="all">Todas las categorías</option>
-            </select>
-            <select id="filterStock" class="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="all">Todo el stock</option>
-              <option value="available">Con stock (&gt; 0)</option>
-              <option value="empty">Agotados (0)</option>
-            </select>
-            <button id="filterOfferOnly" type="button" class="px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm font-medium hover:bg-amber-100 transition">
-              Solo Ofertas
-            </button>
-          </div>
-        </div>
-
-        <div id="tablesWrapper" class="space-y-5">
-          <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-            <div class="px-4 py-2.5 bg-slate-800 text-white text-xs font-bold uppercase tracking-wider">
-              Lubricantes y Aditivos
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr class="border-b border-slate-200 bg-slate-100 text-xs uppercase text-slate-600">
-                    <th class="py-2.5 px-3 font-semibold">CD</th>
-                    <th class="py-2.5 px-3 font-semibold">Producto</th>
-                    <th class="py-2.5 px-3 font-semibold">Categoría</th>
-                    <th class="py-2.5 px-3 font-semibold text-right">Precio</th>
-                    <th class="py-2.5 px-3 font-semibold text-center">Stock</th>
-                    <th class="py-2.5 px-3 font-semibold text-center">Oferta</th>
-                    <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
-                  </tr>
-                </thead>
-                <tbody id="productTableBody" class="divide-y divide-slate-100"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="bg-white rounded-xl border border-amber-300 shadow-xs overflow-hidden">
-            <div class="px-4 py-2.5 bg-amber-500 text-slate-950 text-xs font-bold uppercase tracking-wider flex items-center justify-between flex-wrap gap-2">
-              <span>Productos O1 – O8 (Aguas, Gaseosas y Otros)</span>
-              <span class="text-[11px] font-semibold bg-white/80 px-2 py-0.5 rounded-full">Solo O1 y O2 aplican para oferta gratis (&gt; S/ 200)</span>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr class="border-b border-amber-200 bg-amber-50 text-xs uppercase text-amber-900">
-                    <th class="py-2.5 px-3 font-semibold">CD</th>
-                    <th class="py-2.5 px-3 font-semibold">Producto</th>
-                    <th class="py-2.5 px-3 font-semibold">Categoría</th>
-                    <th class="py-2.5 px-3 font-semibold text-right">Precio</th>
-                    <th class="py-2.5 px-3 font-semibold text-center">Stock</th>
-                    <th class="py-2.5 px-3 font-semibold text-center">Oferta</th>
-                    <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
-                  </tr>
-                </thead>
-                <tbody id="offerTableBody" class="divide-y divide-amber-100"></tbody>
-              </table>
-            </div>
-          </div>
+    <!-- TAB 1: PRODUCTOS Y VENTA (SIN CARRITO, CON CONFIRMACIÓN EN EL CENTRO) -->
+    <div id="viewCatalogo" class="space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 p-3.5 flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
+        <input id="searchProduct" type="text" placeholder="Buscar por código (ej. A1, O3) o nombre..." class="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <div class="flex items-center gap-2 flex-wrap">
+          <select id="filterCategory" class="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="all">Todas las categorías</option>
+          </select>
+          <select id="filterStock" class="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="all">Todo el stock</option>
+            <option value="available">Con stock (&gt; 0)</option>
+            <option value="empty">Agotados (0)</option>
+          </select>
+          <button id="filterOfferOnly" type="button" class="px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm font-medium hover:bg-amber-100 transition">
+            Solo Ofertas
+          </button>
         </div>
       </div>
 
-      <!-- Cart / POS Column -->
-      <aside class="lg:col-span-4 bg-white rounded-xl border border-slate-200 shadow-sm p-4 sticky top-28 space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div>
-            <h2 class="text-base font-bold text-slate-900">Carrito de Venta</h2>
-            <p class="text-xs text-slate-500">Compra &gt; S/ 200.00 = 1 producto oferta gratis</p>
+      <div id="tablesWrapper" class="space-y-5">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div class="px-4 py-2.5 bg-slate-800 text-white text-xs font-bold uppercase tracking-wider">
+            Lubricantes y Aditivos
           </div>
-          <button id="btnClearCart" type="button" class="text-xs font-medium text-rose-600 hover:text-rose-700">Vaciar</button>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 bg-slate-100 text-xs uppercase text-slate-600">
+                  <th class="py-2.5 px-3 font-semibold">CD</th>
+                  <th class="py-2.5 px-3 font-semibold">Producto</th>
+                  <th class="py-2.5 px-3 font-semibold">Categoría</th>
+                  <th class="py-2.5 px-3 font-semibold text-right">Precio</th>
+                  <th class="py-2.5 px-3 font-semibold text-center">Stock</th>
+                  <th class="py-2.5 px-3 font-semibold text-center">Oferta</th>
+                  <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="productTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
         </div>
 
-        <div id="promoBox" class="rounded-xl p-3 border border-slate-200 bg-slate-50 space-y-2">
-          <div class="flex items-center justify-between text-xs font-semibold">
-            <span id="promoStatusText" class="text-slate-700">Supera S/ 200.00 para oferta gratis</span>
-            <span id="promoProgressLabel" class="text-indigo-600">S/ 0.00 / S/ 200.00</span>
+        <div class="bg-white rounded-xl border border-amber-300 shadow-xs overflow-hidden">
+          <div class="px-4 py-2.5 bg-amber-500 text-slate-950 text-xs font-bold uppercase tracking-wider flex items-center justify-between flex-wrap gap-2">
+            <span>Productos O1 – O8 (Aguas, Gaseosas y Otros)</span>
+            <span class="text-[11px] font-semibold bg-white/80 px-2 py-0.5 rounded-full">Solo O1 y O2 pueden darse como oferta gratis (&gt; S/ 200)</span>
           </div>
-          <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-            <div id="promoProgressBar" class="h-full bg-indigo-600 rounded-full transition-all duration-300" style="width: 0%;"></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="border-b border-amber-200 bg-amber-50 text-xs uppercase text-amber-900">
+                  <th class="py-2.5 px-3 font-semibold">CD</th>
+                  <th class="py-2.5 px-3 font-semibold">Producto</th>
+                  <th class="py-2.5 px-3 font-semibold">Categoría</th>
+                  <th class="py-2.5 px-3 font-semibold text-right">Precio</th>
+                  <th class="py-2.5 px-3 font-semibold text-center">Stock</th>
+                  <th class="py-2.5 px-3 font-semibold text-center">Oferta</th>
+                  <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="offerTableBody" class="divide-y divide-amber-100"></tbody>
+            </table>
           </div>
         </div>
-
-        <div id="cartItemsContainer" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
-
-        <div id="freeOfferSection" class="hidden rounded-xl border-2 border-amber-400 bg-amber-50 p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wide text-amber-800">Oferta Desbloqueada</span>
-            <span class="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">GRATIS</span>
-          </div>
-          <label for="selectFreeOffer" class="block text-xs text-amber-900 font-medium">Elige el producto de oferta que se lleva el cliente:</label>
-          <select id="selectFreeOffer" class="w-full px-3 py-2 rounded-lg border border-amber-300 bg-white text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"></select>
-        </div>
-
-        <div class="border-t border-slate-100 pt-3 space-y-2.5">
-          <div>
-            <label for="saleCustomer" class="block text-xs font-medium text-slate-600 mb-1">Cliente (opcional)</label>
-            <input id="saleCustomer" type="text" placeholder="Ej. Cliente general" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-slate-600">Subtotal</span>
-            <span id="cartSubtotal" class="font-semibold text-slate-900">S/ 0.00</span>
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-slate-600">Oferta (&gt; S/ 200)</span>
-            <span id="cartOfferBadge" class="font-medium text-slate-500">No aplicada</span>
-          </div>
-          <div class="flex items-center justify-between text-lg font-bold border-t border-slate-100 pt-2">
-            <span>Total a Pagar</span>
-            <span id="cartTotal" class="text-indigo-600">S/ 0.00</span>
-          </div>
-          <button id="btnCheckout" type="button" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-sm transition shadow-sm">
-            Confirmar Venta
-          </button>
-        </div>
-      </aside>
+      </div>
     </div>
 
     <!-- TAB 2: ENTRADAS / REPOSICIÓN (SOLO ADMINISTRADOR) -->
@@ -407,6 +348,36 @@
 
       </div>
 
+      <!-- Ajuste de Stock Inicial (Turno y Almacén) -->
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Modificar Stock Inicial (Turno y Todo el Almacén)</h2>
+            <p class="text-xs text-slate-500">Ajusta el stock inicial del turno (para la hoja de cierre) o el stock real en almacén (se guarda en Supabase).</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <input id="searchAdminStock" type="text" placeholder="Buscar código o producto..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <button id="btnSaveAllAdminStock" type="button" class="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold transition">
+              Guardar Todos los Cambios
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto max-h-96 overflow-y-auto border border-slate-200 rounded-lg">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead class="sticky top-0 bg-slate-100 z-10">
+              <tr class="border-b border-slate-200 text-xs uppercase text-slate-600">
+                <th class="py-2.5 px-3 font-semibold">CD</th>
+                <th class="py-2.5 px-3 font-semibold">Producto</th>
+                <th class="py-2.5 px-3 font-semibold text-center">Inicial (Turno)</th>
+                <th class="py-2.5 px-3 font-semibold text-center">Stock Almacén</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="adminStockTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Perfil Admin: Cambiar Contraseña -->
       <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm max-w-lg space-y-3">
         <div>
@@ -432,6 +403,24 @@
             Actualizar Contraseña
           </button>
         </form>
+      </div>
+
+      </div>
+
+      <!-- Exclusivo Super Admin (oculto para otros admins y usuarios) -->
+      <div id="superAdminPanel" class="superadmin-only hidden bg-slate-900 text-white rounded-xl p-5 shadow-sm max-w-lg space-y-3">
+        <div>
+          <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-400 text-slate-950 mb-1">Acceso Maestro</span>
+          <h2 class="text-base font-bold">Control de Contraseña de Administradores</h2>
+          <p class="text-xs text-slate-300">Visualiza o restablece la clave actual del Administrador estándar.</p>
+        </div>
+        <div class="rounded-lg bg-slate-800 border border-slate-700 px-3.5 py-2.5 flex items-center justify-between text-xs">
+          <span class="text-slate-300">Contraseña actual de Admin:</span>
+          <strong id="superAdminViewPass" class="font-mono text-sm text-amber-300"></strong>
+        </div>
+        <button id="btnResetNormalAdminPass" type="button" class="px-3.5 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold transition">
+          Restablecer clave de Admin a admin123
+        </button>
       </div>
     </div>
 
@@ -536,6 +525,60 @@
       </div>
     </div>
   </main>
+
+  <!-- Modal: Confirmar Venta / Oferta en el Centro -->
+  <div id="modalSellConfirm" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 mb-1">Confirmar Operación</span>
+          <h3 id="sellModalTitle" class="text-lg font-bold text-slate-900">¿Vender este producto?</h3>
+        </div>
+        <button id="btnCloseSellModal" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
+      </div>
+
+      <div class="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-1">
+        <p id="sellModalProdName" class="text-sm font-bold text-slate-900"></p>
+        <div class="flex items-center justify-between text-xs text-slate-600">
+          <span>Precio unitario: <strong id="sellModalUnitPrice" class="text-slate-900">S/ 0.00</strong></span>
+          <span>Stock disponible: <strong id="sellModalAvailStock" class="text-emerald-700">0</strong></span>
+        </div>
+      </div>
+
+      <!-- Solo visible para O1 (Agua Mineral) y O2 (Gaseosa) -->
+      <div id="sellModalOfferChoice" class="hidden space-y-2">
+        <span class="block text-xs font-semibold text-slate-700">¿Cómo sale este producto?</span>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btnModeSale" type="button" class="py-2.5 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-900 text-xs font-bold text-center transition">
+            Se está vendiendo<br><span class="font-normal text-indigo-700">Cobrar normal</span>
+          </button>
+          <button id="btnModeFreeOffer" type="button" class="py-2.5 px-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-bold text-center hover:bg-amber-100 transition">
+            Es Oferta GRATIS<br><span class="font-normal text-amber-700">S/ 0.00 (&gt; S/ 200)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 items-end">
+        <div>
+          <label for="sellModalQty" class="block text-xs font-semibold text-slate-700 mb-1">Cantidad</label>
+          <input id="sellModalQty" type="number" min="1" step="1" value="1" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="text-right pb-1">
+          <span class="block text-xs text-slate-500">Total a cobrar</span>
+          <span id="sellModalTotal" class="text-xl font-extrabold text-indigo-600">S/ 0.00</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button id="btnCancelSellModal" type="button" class="py-2.5 px-4 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">
+          No, cancelar
+        </button>
+        <button id="btnConfirmSellModal" type="button" class="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition shadow-sm">
+          Sí, confirmar
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal: Agregar Stock a Producto Existente -->
   <div id="modalProduct" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
@@ -650,6 +693,8 @@
     const SB_CONFIG_KEY = 'tienda_supabase_cfg_v2';
     const DEFAULT_SB_URL = 'https://lpivjskjemfxfxanfwul.supabase.co';
     const DEFAULT_SB_KEY = 'sb_publishable__C05RkgQsqYE-_0Wm5_pLg_4pBhW8en';
+    const SUPER_ADMIN_USER = 'ADMIN';
+    const SUPER_ADMIN_PASS = '135760';
     const ADMIN_PASS_DEFAULT = 'admin123';
     const ADMIN_PASS_KEY = 'tienda_admin_pass_v1';
 
@@ -928,7 +973,7 @@
     }
 
     function setTab(tab) {
-      const isAdmin = state.session.role === 'admin';
+      const isAdmin = state.session.role === 'admin' || state.session.role === 'superadmin';
       if (!isAdmin && (tab === 'entradas' || tab === 'ventas' || tab === 'admin')) {
         tab = 'catalogo';
       }
@@ -961,11 +1006,19 @@
     function renderSession() {
       const overlay = document.getElementById('loginOverlay');
       overlay.classList.toggle('hidden', state.session.loggedIn);
-      const isAdmin = state.session.role === 'admin';
+      const isAdmin = state.session.role === 'admin' || state.session.role === 'superadmin';
 
+      const isSuperAdmin = state.session.role === 'superadmin';
       document.querySelectorAll('.admin-only').forEach(el => {
         el.classList.toggle('hidden', !isAdmin);
       });
+      document.querySelectorAll('.superadmin-only').forEach(el => {
+        el.classList.toggle('hidden', !isSuperAdmin);
+      });
+      if (isSuperAdmin) {
+        const vp = document.getElementById('superAdminViewPass');
+        if (vp) vp.textContent = getAdminPass();
+      }
 
       const roleBadge = document.getElementById('roleStatusBadge');
       roleBadge.textContent = isAdmin ? 'Administrador' : 'Usuario de Turno';
@@ -1013,8 +1066,7 @@
     }
 
     function buildProductRow(p) {
-      const inCart = state.cart[p.id] || 0;
-      const remaining = Math.max(0, p.stock - inCart);
+      const remaining = Math.max(0, p.stock);
       const stockBadge = p.stock === 0
         ? '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">0</span>'
         : p.stock <= 3
@@ -1035,7 +1087,7 @@
           </td>
           <td class="py-2.5 px-3 text-right whitespace-nowrap">
             <button data-action="add-cart" data-id="${p.id}" type="button" ${remaining === 0 ? 'disabled' : ''} class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold transition">
-              ${remaining === 0 ? 'Sin stock' : (inCart > 0 ? `+1 (${inCart})` : 'Vender')}
+              ${remaining === 0 ? 'Sin stock' : 'Vender'}
             </button>
           </td>
         </tr>
@@ -1067,90 +1119,6 @@
       tbodyOffers.innerHTML = offerList.length === 0
         ? `<tr><td colspan="7" class="py-6 text-center text-slate-400 text-sm">No hay productos O1–O8 con esos filtros.</td></tr>`
         : offerList.map(buildProductRow).join('');
-    }
-
-    function renderCart() {
-      const container = document.getElementById('cartItemsContainer');
-      const subtotal = getCartSubtotal();
-      const entries = Object.entries(state.cart).filter(([, qty]) => qty > 0);
-
-      if (entries.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-5">El carrito está vacío. Haz clic en "Vender" en cualquier producto con stock.</p>';
-      } else {
-        container.innerHTML = entries.map(([idStr, qty]) => {
-          const p = state.products.find(item => item.id === Number(idStr));
-          if (!p) return '';
-          return `
-            <div class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-              <div class="min-w-0 flex-1">
-                <p class="text-xs font-bold text-slate-800 truncate"><span class="text-slate-400 font-mono mr-1">${p.cd}</span>${p.nombre}</p>
-                <p class="text-xs text-slate-500">${formatMoney(p.precio)} c/u</p>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <button data-action="cart-dec" data-id="${p.id}" type="button" class="w-6 h-6 rounded-md bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100">-</button>
-                <span class="w-6 text-center text-xs font-bold">${qty}</span>
-                <button data-action="cart-inc" data-id="${p.id}" type="button" ${qty >= p.stock ? 'disabled' : ''} class="w-6 h-6 rounded-md bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 disabled:opacity-40">+</button>
-              </div>
-            </div>
-          `;
-        }).join('');
-      }
-
-      const unlocked = subtotal > PROMO_THRESHOLD;
-      const pct = Math.min(100, (subtotal / PROMO_THRESHOLD) * 100);
-      const promoBox = document.getElementById('promoBox');
-      const promoStatusText = document.getElementById('promoStatusText');
-      const promoProgressLabel = document.getElementById('promoProgressLabel');
-      const promoProgressBar = document.getElementById('promoProgressBar');
-      const freeSection = document.getElementById('freeOfferSection');
-      const freeSelect = document.getElementById('selectFreeOffer');
-      const cartOfferBadge = document.getElementById('cartOfferBadge');
-
-      promoProgressBar.style.width = `${pct}%`;
-      promoProgressLabel.textContent = `${formatMoney(subtotal)} / ${formatMoney(PROMO_THRESHOLD)}`;
-
-      const availableOffers = getAvailableOfferProducts();
-
-      if (unlocked) {
-        promoBox.className = 'rounded-xl p-3 border border-emerald-300 bg-emerald-50 space-y-2';
-        promoStatusText.textContent = '¡Oferta desbloqueada! Lleva 1 producto gratis';
-        promoStatusText.className = 'text-emerald-800';
-        promoProgressBar.className = 'h-full bg-emerald-600 rounded-full transition-all duration-300';
-
-        if (availableOffers.length > 0) {
-          freeSection.classList.remove('hidden');
-          freeSelect.innerHTML = availableOffers.map(o => `<option value="${o.id}">${o.cd} - ${o.nombre} (Stock: ${o.stock}) — GRATIS</option>`).join('');
-          if (state.selectedFreeOfferId && availableOffers.some(o => o.id === state.selectedFreeOfferId)) {
-            freeSelect.value = String(state.selectedFreeOfferId);
-          } else {
-            state.selectedFreeOfferId = availableOffers[0].id;
-            freeSelect.value = String(state.selectedFreeOfferId);
-          }
-          cartOfferBadge.textContent = '1 producto GRATIS';
-          cartOfferBadge.className = 'font-bold text-emerald-600';
-        } else {
-          freeSection.classList.add('hidden');
-          state.selectedFreeOfferId = null;
-          cartOfferBadge.textContent = 'Sin stock en aguas/gaseosas';
-          cartOfferBadge.className = 'font-medium text-amber-600';
-        }
-      } else {
-        promoBox.className = 'rounded-xl p-3 border border-slate-200 bg-slate-50 space-y-2';
-        const diff = Math.max(0.01, (PROMO_THRESHOLD + 0.01) - subtotal);
-        promoStatusText.textContent = subtotal === 0
-          ? 'Supera S/ 200.00 para oferta gratis'
-          : `Agrega ${formatMoney(diff)} más para oferta gratis`;
-        promoStatusText.className = 'text-slate-700';
-        promoProgressBar.className = 'h-full bg-indigo-600 rounded-full transition-all duration-300';
-        freeSection.classList.add('hidden');
-        state.selectedFreeOfferId = null;
-        cartOfferBadge.textContent = 'No aplicada';
-        cartOfferBadge.className = 'font-medium text-slate-500';
-      }
-
-      document.getElementById('cartSubtotal').textContent = formatMoney(subtotal);
-      document.getElementById('cartTotal').textContent = formatMoney(subtotal);
-      document.getElementById('btnCheckout').disabled = entries.length === 0;
     }
 
     function renderEntradasSelect() {
@@ -1218,6 +1186,34 @@
       `).join('');
     }
 
+    function renderAdminStockTable() {
+      const tbody = document.getElementById('adminStockTableBody');
+      if (!tbody) return;
+      const q = (document.getElementById('searchAdminStock')?.value || '').trim().toLowerCase();
+      const list = state.products.filter(p => !q || p.cd.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q));
+
+      tbody.innerHTML = list.map(p => {
+        const c = state.shiftCounters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
+        return `
+          <tr class="hover:bg-slate-50" data-admin-prod-id="${p.id}">
+            <td class="py-2 px-3 font-mono text-xs font-bold text-slate-600">${p.cd}</td>
+            <td class="py-2 px-3 font-medium text-slate-900 text-xs">${p.nombre}</td>
+            <td class="py-2 px-3 text-center">
+              <input type="number" min="0" step="1" data-field="inicial" value="${c.inicial}" class="w-20 px-2 py-1 text-center rounded-md border border-slate-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </td>
+            <td class="py-2 px-3 text-center">
+              <input type="number" min="0" step="1" data-field="almacen" value="${p.stock}" class="w-20 px-2 py-1 text-center rounded-md border border-slate-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            </td>
+            <td class="py-2 px-3 text-right">
+              <button type="button" data-action="save-admin-stock" data-id="${p.id}" class="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-indigo-600 text-white text-xs font-semibold transition">
+                Guardar
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
     function renderAdminAudit() {
       let m = 0, t = 0, n = 0, tot = 0;
       state.ventas.forEach(v => {
@@ -1231,6 +1227,7 @@
       document.getElementById('adminSalesN').textContent = formatMoney(n);
       document.getElementById('adminSalesTotal').textContent = formatMoney(tot);
 
+      renderAdminStockTable();
       const tbody = document.getElementById('auditoriaTableBody');
       if (state.auditoria.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 text-sm">No hay correcciones ni cambios registrados aún.</td></tr>`;
@@ -1252,6 +1249,7 @@
           </tr>
         `;
       }).join('');
+      renderAdminStockTable();
     }
 
     function renderCierreSheet() {
@@ -1356,7 +1354,6 @@
       renderKPIs();
       renderCategoryFilter();
       renderProducts();
-      renderCart();
       renderEntradasSelect();
       renderEntradasTable();
       renderVentas();
@@ -1406,12 +1403,19 @@
 
       if (loginRoleMode === 'admin') {
         const pass = document.getElementById('loginAdminPass').value.trim();
-        if (pass !== getAdminPass()) {
+        const isSuper = (resp === SUPER_ADMIN_USER && pass === SUPER_ADMIN_PASS);
+        if (!isSuper && pass !== getAdminPass()) {
           document.getElementById('loginAdminError').classList.remove('hidden');
           return;
         }
         document.getElementById('loginAdminError').classList.add('hidden');
-        state.session = { loggedIn: true, role: 'admin', responsable: resp, turno: 'Administrador', turnoId: null };
+        state.session = {
+          loggedIn: true,
+          role: isSuper ? 'superadmin' : 'admin',
+          responsable: resp,
+          turno: 'Administrador',
+          turnoId: null
+        };
         document.getElementById('loginAdminPass').value = '';
         saveState();
         renderAll();
@@ -1524,143 +1528,138 @@
       renderProducts();
     });
 
+    // Modal Confirmar Venta / Oferta
+    const modalSell = document.getElementById('modalSellConfirm');
+    let currentSellProd = null;
+    let sellMode = 'sale'; // 'sale' | 'offer'
+
+    function updateSellModalUI() {
+      if (!currentSellProd) return;
+      const qtyInput = document.getElementById('sellModalQty');
+      let qty = parseInt(qtyInput.value, 10) || 1;
+      if (qty < 1) qty = 1;
+      if (qty > currentSellProd.stock) qty = currentSellProd.stock;
+      qtyInput.value = qty;
+
+      const btnSale = document.getElementById('btnModeSale');
+      const btnOffer = document.getElementById('btnModeFreeOffer');
+      if (sellMode === 'offer') {
+        btnOffer.className = 'py-2.5 px-3 rounded-xl border-2 border-amber-500 bg-amber-100 text-amber-950 text-xs font-bold text-center transition';
+        btnSale.className = 'py-2.5 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold text-center hover:bg-slate-50 transition';
+        document.getElementById('sellModalTotal').textContent = 'S/ 0.00 (OFERTA)';
+      } else {
+        btnSale.className = 'py-2.5 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-900 text-xs font-bold text-center transition';
+        btnOffer.className = 'py-2.5 px-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-bold text-center hover:bg-amber-100 transition';
+        document.getElementById('sellModalTotal').textContent = formatMoney(currentSellProd.precio * qty);
+      }
+    }
+
+    function openSellModal(prod) {
+      currentSellProd = prod;
+      sellMode = 'sale';
+      document.getElementById('sellModalProdName').textContent = `${prod.cd} — ${prod.nombre}`;
+      document.getElementById('sellModalUnitPrice').textContent = formatMoney(prod.precio);
+      document.getElementById('sellModalAvailStock').textContent = prod.stock;
+      const qtyEl = document.getElementById('sellModalQty');
+      qtyEl.max = prod.stock;
+      qtyEl.value = 1;
+
+      const isOfferEligible = (prod.cd === 'O1' || prod.cd === 'O2');
+      document.getElementById('sellModalOfferChoice').classList.toggle('hidden', !isOfferEligible);
+      updateSellModalUI();
+      modalSell.classList.remove('hidden');
+    }
+
     document.getElementById('tablesWrapper').addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-action]');
+      const btn = e.target.closest('button[data-action="add-cart"]');
       if (!btn) return;
       const id = Number(btn.dataset.id);
       const prod = state.products.find(p => p.id === id);
-      if (!prod) return;
-      if (btn.dataset.action === 'add-cart') {
-        const current = state.cart[id] || 0;
-        if (current < prod.stock) {
-          state.cart[id] = current + 1;
-          saveState();
-          renderProducts();
-          renderCart();
-          showToast(`Agregado: ${prod.cd} - ${prod.nombre}`);
-        }
-      }
+      if (!prod || prod.stock <= 0) return;
+      openSellModal(prod);
     });
 
-    document.getElementById('cartItemsContainer').addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-action]');
-      if (!btn) return;
-      const id = Number(btn.dataset.id);
-      const prod = state.products.find(p => p.id === id);
-      if (!prod) return;
-      const current = state.cart[id] || 0;
-      if (btn.dataset.action === 'cart-inc' && current < prod.stock) state.cart[id] = current + 1;
-      else if (btn.dataset.action === 'cart-dec') {
-        if (current <= 1) delete state.cart[id];
-        else state.cart[id] = current - 1;
-      }
-      saveState();
-      renderProducts();
-      renderCart();
-    });
+    document.getElementById('btnModeSale').addEventListener('click', () => { sellMode = 'sale'; updateSellModalUI(); });
+    document.getElementById('btnModeFreeOffer').addEventListener('click', () => { sellMode = 'offer'; updateSellModalUI(); });
+    document.getElementById('sellModalQty').addEventListener('input', updateSellModalUI);
+    document.getElementById('btnCloseSellModal').addEventListener('click', () => modalSell.classList.add('hidden'));
+    document.getElementById('btnCancelSellModal').addEventListener('click', () => modalSell.classList.add('hidden'));
 
-    document.getElementById('selectFreeOffer').addEventListener('change', (e) => {
-      state.selectedFreeOfferId = Number(e.target.value);
-      saveState();
-    });
-
-    document.getElementById('btnClearCart').addEventListener('click', () => {
-      state.cart = {};
-      state.selectedFreeOfferId = null;
-      saveState();
-      renderProducts();
-      renderCart();
-    });
-
-    document.getElementById('btnCheckout').addEventListener('click', async () => {
-      const entries = Object.entries(state.cart).filter(([, qty]) => qty > 0);
-      if (entries.length === 0) return;
-
-      const subtotal = getCartSubtotal();
-      const customer = document.getElementById('saleCustomer').value.trim() || 'Cliente general';
-
-      for (const [idStr, qty] of entries) {
-        const prod = state.products.find(p => p.id === Number(idStr));
-        if (!prod || prod.stock < qty) {
-          showToast(`Stock insuficiente para ${prod ? prod.nombre : 'producto'}`);
-          return;
-        }
+    document.getElementById('btnConfirmSellModal').addEventListener('click', async () => {
+      if (!currentSellProd) return;
+      const qty = parseInt(document.getElementById('sellModalQty').value, 10) || 1;
+      if (qty <= 0 || qty > currentSellProd.stock) {
+        showToast('Cantidad inválida o sin stock suficiente');
+        return;
       }
 
-      const giftId = (subtotal > PROMO_THRESHOLD && state.selectedFreeOfferId) ? state.selectedFreeOfferId : null;
+      const isFreeOffer = sellMode === 'offer' && (currentSellProd.cd === 'O1' || currentSellProd.cd === 'O2');
+      const total = isFreeOffer ? 0 : (currentSellProd.precio * qty);
 
       if (supabaseClient) {
         try {
-          const itemsPayload = entries.map(([idStr, qty]) => ({ producto_id: Number(idStr), cantidad: qty }));
-          const { error } = await supabaseClient.rpc('registrar_venta', {
-            p_responsable: state.session.responsable,
-            p_turno_id: state.session.turnoId,
-            p_cliente: customer,
-            p_items: itemsPayload,
-            p_regalo_producto_id: giftId
-          });
-          if (error) throw error;
-
-          entries.forEach(([idStr, qty]) => {
-            const id = Number(idStr);
-            if (!state.shiftCounters[id]) state.shiftCounters[id] = { inicial: 0, reposicion: 0, venta: 0, oferta: 0 };
-            state.shiftCounters[id].venta += qty;
-          });
-          if (giftId) {
-            if (!state.shiftCounters[giftId]) state.shiftCounters[giftId] = { inicial: 0, reposicion: 0, venta: 0, oferta: 0 };
-            state.shiftCounters[giftId].oferta += 1;
+          if (isFreeOffer) {
+            const { error: errUp } = await supabaseClient
+              .from('productos')
+              .update({ stock: currentSellProd.stock - qty, updated_at: new Date().toISOString() })
+              .eq('id', currentSellProd.id);
+            if (errUp) throw errUp;
+            await supabaseClient.from('ventas').insert({
+              turno_id: state.session.turnoId,
+              responsable: state.session.responsable,
+              cliente: `OFERTA GRATIS (${currentSellProd.cd} x${qty})`,
+              subtotal: 0,
+              total: 0
+            });
+          } else {
+            const { error } = await supabaseClient.rpc('registrar_venta', {
+              p_responsable: state.session.responsable,
+              p_turno_id: state.session.turnoId,
+              p_cliente: 'Cliente general',
+              p_items: [{ producto_id: currentSellProd.id, cantidad: qty }],
+              p_regalo_producto_id: null
+            });
+            if (error) throw error;
           }
+          if (!state.shiftCounters[currentSellProd.id]) {
+            state.shiftCounters[currentSellProd.id] = { inicial: currentSellProd.stock, reposicion: 0, venta: 0, oferta: 0 };
+          }
+          if (isFreeOffer) state.shiftCounters[currentSellProd.id].oferta += qty;
+          else state.shiftCounters[currentSellProd.id].venta += qty;
 
-          state.cart = {};
-          state.selectedFreeOfferId = null;
-          document.getElementById('saleCustomer').value = '';
+          modalSell.classList.add('hidden');
           await syncFromSupabase();
-          showToast(giftId ? 'Venta y regalo guardados en Supabase' : 'Venta guardada en Supabase');
+          showToast(isFreeOffer ? `Oferta gratis registrada (${currentSellProd.cd} x${qty})` : `Venta registrada: ${currentSellProd.cd} x${qty}`);
           return;
         } catch (err) {
-          showToast('Error Supabase al vender: ' + err.message);
+          showToast('Error Supabase: ' + err.message);
           return;
         }
       }
 
-      const itemsSold = [];
-      for (const [idStr, qty] of entries) {
-        const prod = state.products.find(p => p.id === Number(idStr));
-        prod.stock -= qty;
-        if (!state.shiftCounters[prod.id]) state.shiftCounters[prod.id] = { inicial: prod.stock + qty, reposicion: 0, venta: 0, oferta: 0 };
-        state.shiftCounters[prod.id].venta += qty;
-        itemsSold.push({ id: prod.id, cd: prod.cd, nombre: prod.nombre, cantidad: qty, precio: prod.precio });
+      // Modo Local
+      currentSellProd.stock -= qty;
+      if (!state.shiftCounters[currentSellProd.id]) {
+        state.shiftCounters[currentSellProd.id] = { inicial: currentSellProd.stock + qty, reposicion: 0, venta: 0, oferta: 0 };
       }
+      if (isFreeOffer) state.shiftCounters[currentSellProd.id].oferta += qty;
+      else state.shiftCounters[currentSellProd.id].venta += qty;
 
-      let regaloNombre = null;
-      if (giftId) {
-        const gift = state.products.find(p => p.id === giftId);
-        if (gift && gift.stock > 0) {
-          gift.stock -= 1;
-          if (!state.shiftCounters[gift.id]) state.shiftCounters[gift.id] = { inicial: gift.stock + 1, reposicion: 0, venta: 0, oferta: 0 };
-          state.shiftCounters[gift.id].oferta += 1;
-          regaloNombre = `${gift.cd} - ${gift.nombre}`;
-        }
-      }
-
-      const now = new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
       state.ventas.unshift({
         id: state.ventas.length + 1,
-        fecha: now,
+        fecha: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
         turno: state.session.turno,
         responsable: state.session.responsable,
-        cliente: customer,
-        items: itemsSold,
-        regalo: regaloNombre,
-        total: subtotal
+        cliente: isFreeOffer ? 'Oferta > S/ 200' : 'Cliente general',
+        items: isFreeOffer ? [] : [{ id: currentSellProd.id, cd: currentSellProd.cd, nombre: currentSellProd.nombre, cantidad: qty, precio: currentSellProd.precio }],
+        regalo: isFreeOffer ? `${currentSellProd.cd} - ${currentSellProd.nombre} (x${qty})` : null,
+        total
       });
 
-      state.cart = {};
-      state.selectedFreeOfferId = null;
-      document.getElementById('saleCustomer').value = '';
+      modalSell.classList.add('hidden');
       saveState();
       renderAll();
-      showToast(regaloNombre ? `Venta registrada con oferta gratis: ${regaloNombre}` : 'Venta registrada correctamente');
+      showToast(isFreeOffer ? `Oferta gratis registrada (${currentSellProd.cd} x${qty})` : `Venta registrada: ${currentSellProd.cd} x${qty}`);
     });
 
     // Admin Entradas Form
@@ -1926,6 +1925,96 @@
       } catch (err) {}
       e.target.reset();
       showToast('Contraseña de Administrador actualizada correctamente');
+    });
+
+    document.getElementById('searchAdminStock').addEventListener('input', renderAdminStockTable);
+
+    async function applyAdminStockRow(prodId, newInicial, newAlmacen) {
+      const prod = state.products.find(p => p.id === prodId);
+      if (!prod) return false;
+      if (!state.shiftCounters[prodId]) {
+        state.shiftCounters[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
+      }
+      const oldAlmacen = prod.stock;
+      const oldInicial = state.shiftCounters[prodId].inicial;
+      let changed = false;
+
+      if (!isNaN(newInicial) && newInicial >= 0 && newInicial !== oldInicial) {
+        state.shiftCounters[prodId].inicial = newInicial;
+        changed = true;
+      }
+
+      if (!isNaN(newAlmacen) && newAlmacen >= 0 && newAlmacen !== oldAlmacen) {
+        if (supabaseClient) {
+          const { error } = await supabaseClient
+            .from('productos')
+            .update({ stock: newAlmacen, updated_at: new Date().toISOString() })
+            .eq('id', prodId);
+          if (error) throw error;
+        }
+        prod.stock = newAlmacen;
+        state.auditoria.unshift({
+          id: Date.now() + prodId,
+          fecha: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+          productoNombre: `${prod.cd} — ${prod.nombre}`,
+          cantidadAnterior: oldAlmacen,
+          cantidadNueva: newAlmacen,
+          diferencia: newAlmacen - oldAlmacen,
+          modificadoPor: state.session.responsable,
+          rol: 'admin',
+          motivo: 'Ajuste manual de stock en almacén'
+        });
+        changed = true;
+      }
+      return changed;
+    }
+
+    document.getElementById('adminStockTableBody').addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-action="save-admin-stock"]');
+      if (!btn) return;
+      const prodId = Number(btn.dataset.id);
+      const row = btn.closest('tr');
+      const newInicial = parseInt(row.querySelector('input[data-field="inicial"]').value, 10);
+      const newAlmacen = parseInt(row.querySelector('input[data-field="almacen"]').value, 10);
+
+      try {
+        const changed = await applyAdminStockRow(prodId, newInicial, newAlmacen);
+        if (changed) {
+          saveState();
+          renderAll();
+          showToast('Stock inicial / almacén actualizado');
+        } else {
+          showToast('No hubo cambios en ese producto');
+        }
+      } catch (err) {
+        showToast('Error al actualizar en Supabase: ' + err.message);
+      }
+    });
+
+    document.getElementById('btnSaveAllAdminStock').addEventListener('click', async () => {
+      const rows = document.querySelectorAll('#adminStockTableBody tr[data-admin-prod-id]');
+      let count = 0;
+      try {
+        for (const row of rows) {
+          const prodId = Number(row.dataset.adminProdId);
+          const newInicial = parseInt(row.querySelector('input[data-field="inicial"]').value, 10);
+          const newAlmacen = parseInt(row.querySelector('input[data-field="almacen"]').value, 10);
+          if (await applyAdminStockRow(prodId, newInicial, newAlmacen)) {
+            count++;
+          }
+        }
+        saveState();
+        renderAll();
+        showToast(count > 0 ? `Se actualizaron ${count} producto(s)` : 'No hubo cambios pendientes');
+      } catch (err) {
+        showToast('Error al guardar cambios masivos: ' + err.message);
+      }
+    });
+
+    document.getElementById('btnResetNormalAdminPass').addEventListener('click', () => {
+      try { localStorage.removeItem(ADMIN_PASS_KEY); } catch (err) {}
+      renderSession();
+      showToast('Contraseña de Administrador restablecida a admin123');
     });
 
     document.getElementById('btnResetDemo').addEventListener('click', () => {
