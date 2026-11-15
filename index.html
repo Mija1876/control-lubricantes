@@ -87,7 +87,7 @@
           Conectar Supabase
         </button>
         <button id="btnOpenAddProduct" type="button" class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold transition shadow-sm">
-          + Nuevo Producto
+          + Agregar Stock
         </button>
         <button id="btnGoCierre" type="button" class="inline-flex items-center px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-semibold transition shadow-sm">
           Cierre / Excel
@@ -438,39 +438,38 @@
     </div>
   </main>
 
-  <!-- Modal: Agregar Producto -->
+  <!-- Modal: Agregar Stock a Producto Existente -->
   <div id="modalProduct" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-lg font-bold text-slate-900">Agregar Nuevo Producto</h3>
+        <h3 class="text-lg font-bold text-slate-900">Agregar Stock de Producto</h3>
         <button id="btnCloseModal" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
       </div>
       <form id="formAddProduct" class="space-y-3.5">
-        <div class="grid grid-cols-3 gap-3">
-          <div>
-            <label for="newProdCode" class="block text-xs font-semibold text-slate-700 mb-1">Código (CD)</label>
-            <input id="newProdCode" type="text" required placeholder="Ej. A28" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
-          <div class="col-span-2">
-            <label for="newProdCategory" class="block text-xs font-semibold text-slate-700 mb-1">Categoría</label>
-            <select id="newProdCategory" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="Lubricantes y Aditivos">Lubricantes y Aditivos</option>
-              <option value="Ofertas">Ofertas</option>
-            </select>
-          </div>
+        <div>
+          <label for="modalProdCategory" class="block text-xs font-semibold text-slate-700 mb-1">Categoría</label>
+          <select id="modalProdCategory" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="all">Todas las categorías</option>
+            <option value="Lubricantes y Aditivos">Lubricantes y Aditivos</option>
+            <option value="Ofertas">Ofertas</option>
+          </select>
         </div>
         <div>
-          <label for="newProdName" class="block text-xs font-semibold text-slate-700 mb-1">Nombre del producto</label>
-          <input id="newProdName" type="text" required placeholder="Ej. CASTROL GTX 20W50 1 LT" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <label for="modalProdSelect" class="block text-xs font-semibold text-slate-700 mb-1">Nombre del producto</label>
+          <select id="modalProdSelect" required class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+        </div>
+        <div class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2.5 text-xs">
+          <span class="text-slate-600">Precio fijo: <strong id="modalProdPriceInfo" class="text-slate-900">S/ 0.00</strong></span>
+          <span class="text-slate-600">Stock actual: <strong id="modalProdStockInfo" class="text-indigo-700">0</strong></span>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label for="newProdPrice" class="block text-xs font-semibold text-slate-700 mb-1">Precio (S/)</label>
-            <input id="newProdPrice" type="number" min="0.5" step="0.1" required placeholder="35.00" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <label for="modalProdQty" class="block text-xs font-semibold text-slate-700 mb-1">Cantidad a agregar</label>
+            <input id="modalProdQty" type="number" min="1" step="1" required placeholder="Ej. 5" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
-            <label for="newProdStock" class="block text-xs font-semibold text-slate-700 mb-1">Stock inicial</label>
-            <input id="newProdStock" type="number" min="0" step="1" required placeholder="5" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <label for="modalProdResp" class="block text-xs font-semibold text-slate-700 mb-1">¿Quién lo repone?</label>
+            <input id="modalProdResp" type="text" required value="MIJAIL" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
         </div>
         <div class="flex items-center justify-end gap-2 pt-2">
@@ -478,7 +477,7 @@
             Cancelar
           </button>
           <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
-            Guardar Producto
+            Agregar al Stock
           </button>
         </div>
       </form>
@@ -1469,47 +1468,89 @@
     document.getElementById('searchEntradas').addEventListener('input', renderEntradasTable);
 
     const modal = document.getElementById('modalProduct');
-    document.getElementById('btnOpenAddProduct').addEventListener('click', () => modal.classList.remove('hidden'));
+
+    function populateModalProducts() {
+      const cat = document.getElementById('modalProdCategory').value;
+      const sel = document.getElementById('modalProdSelect');
+      const list = state.products.filter(p => cat === 'all' || p.categoria === cat);
+      sel.innerHTML = list.map(p => `<option value="${p.id}">${p.nombre} — ${formatMoney(p.precio)}</option>`).join('');
+      updateModalProductInfo();
+    }
+
+    function updateModalProductInfo() {
+      const id = Number(document.getElementById('modalProdSelect').value);
+      const p = state.products.find(item => item.id === id);
+      document.getElementById('modalProdPriceInfo').textContent = p ? formatMoney(p.precio) : 'S/ 0.00';
+      document.getElementById('modalProdStockInfo').textContent = p ? p.stock : '0';
+    }
+
+    document.getElementById('modalProdCategory').addEventListener('change', populateModalProducts);
+    document.getElementById('modalProdSelect').addEventListener('change', updateModalProductInfo);
+
+    document.getElementById('btnOpenAddProduct').addEventListener('click', () => {
+      populateModalProducts();
+      document.getElementById('modalProdResp').value = state.session.responsable || 'MIJAIL';
+      modal.classList.remove('hidden');
+    });
     document.getElementById('btnCloseModal').addEventListener('click', () => modal.classList.add('hidden'));
     document.getElementById('btnCancelModal').addEventListener('click', () => modal.classList.add('hidden'));
 
     document.getElementById('formAddProduct').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const cd = document.getElementById('newProdCode').value.trim().toUpperCase();
-      const categoria = document.getElementById('newProdCategory').value;
-      const nombre = document.getElementById('newProdName').value.trim().toUpperCase();
-      const precio = parseFloat(document.getElementById('newProdPrice').value);
-      const stock = parseInt(document.getElementById('newProdStock').value, 10);
-      const esOferta = false;
+      const prodId = Number(document.getElementById('modalProdSelect').value);
+      const cantidad = parseInt(document.getElementById('modalProdQty').value, 10);
+      const responsable = document.getElementById('modalProdResp').value.trim().toUpperCase();
 
-      if (!cd || !nombre || !categoria || isNaN(precio) || isNaN(stock)) return;
+      const prod = state.products.find(p => p.id === prodId);
+      if (!prod || !cantidad || cantidad <= 0 || !responsable) return;
 
       if (supabaseClient) {
         try {
-          const { error } = await supabaseClient
-            .from('productos')
-            .insert({ cd, nombre, categoria, precio, stock, es_oferta_gratis: esOferta });
+          const { error } = await supabaseClient.rpc('registrar_entrada_stock', {
+            p_producto_id: prodId,
+            p_cantidad: cantidad,
+            p_responsable: responsable,
+            p_turno_id: state.session.turnoId,
+            p_nota: 'Ingreso rápido'
+          });
           if (error) throw error;
+          if (!state.shiftCounters[prodId]) state.shiftCounters[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
+          state.shiftCounters[prodId].reposicion += cantidad;
           e.target.reset();
           modal.classList.add('hidden');
           await syncFromSupabase();
-          showToast(`Producto guardado en Supabase: ${cd} - ${nombre}`);
+          showToast(`Stock agregado en Supabase: +${cantidad} a ${prod.nombre}`);
           return;
         } catch (err) {
-          showToast('Error Supabase al agregar producto: ' + err.message);
+          showToast('Error Supabase al agregar stock: ' + err.message);
           return;
         }
       }
 
-      const nextId = state.products.reduce((m, p) => Math.max(m, p.id), 0) + 1;
-      state.products.push({ id: nextId, cd, nombre, categoria, precio, stock, esOferta });
-      state.shiftCounters[nextId] = { inicial: stock, reposicion: 0, venta: 0, oferta: 0 };
+      const stockAntes = prod.stock;
+      prod.stock += cantidad;
+      if (!state.shiftCounters[prod.id]) state.shiftCounters[prod.id] = { inicial: stockAntes, reposicion: 0, venta: 0, oferta: 0 };
+      state.shiftCounters[prod.id].reposicion += cantidad;
+
+      const now = new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
+      state.entradas.unshift({
+        id: Date.now(),
+        fecha: now,
+        turno: state.session.turno,
+        productoId: prod.id,
+        productoNombre: `${prod.cd} — ${prod.nombre}`,
+        cantidad,
+        stockAntes,
+        stockDespues: prod.stock,
+        responsable,
+        nota: 'Ingreso rápido'
+      });
 
       e.target.reset();
       modal.classList.add('hidden');
       saveState();
       renderAll();
-      showToast(`Producto agregado: ${cd} - ${nombre}`);
+      showToast(`Stock agregado: +${cantidad} a ${prod.nombre}`);
     });
 
     document.getElementById('btnResetDemo').addEventListener('click', () => {
