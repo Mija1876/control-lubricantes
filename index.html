@@ -14,11 +14,42 @@
     .tab-active { background-color: #0f172a; color: #ffffff; }
     .tab-inactive { background-color: #ffffff; color: #475569; }
     .tab-inactive:hover { background-color: #f1f5f9; color: #0f172a; }
+    @page {
+      size: A4 portrait;
+      margin: 6mm 8mm;
+    }
     @media print {
-      body { background: #ffffff !important; }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
       header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase, #modalFixEntry, #modalSellConfirm { display: none !important; }
+      main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
       #viewCierre { display: block !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
-      #printableSheet { border: none !important; box-shadow: none !important; padding: 0 !important; }
+      #printableSheet {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 9px !important;
+        line-height: 1.15 !important;
+      }
+      #printableSheet > * + * { margin-top: 5px !important; }
+      #printableSheet h3 { font-size: 9.5px !important; margin-bottom: 2px !important; }
+      #printableSheet table { width: 100% !important; border-collapse: collapse !important; }
+      #printableSheet th, #printableSheet td {
+        padding: 1.5px 4px !important;
+        font-size: 8.5px !important;
+        line-height: 1.15 !important;
+        white-space: nowrap !important;
+      }
+      #printableSheet textarea {
+        rows: 1;
+        height: 24px !important;
+        padding: 2px 4px !important;
+        font-size: 8.5px !important;
+      }
     }
   </style>
 </head>
