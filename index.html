@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Control de Lubricantes, Ofertas y Cierre de Caja</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .tab-active {
+      background-color: #0f172a;
+      color: #ffffff;
+    }
+    .tab-inactive {
+      background-color: #ffffff;
+      color: #475569;
+    }
+    .tab-inactive:hover {
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+    @media print {
+      body { background: #ffffff !important; }
+      header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase { display: none !important; }
+      #viewCierre { display: block !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
+      #printableSheet { border: none !important; box-shadow: none !important; padding: 0 !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  <!-- Login Overlay (3 Turnos: Mañana, Tarde, Noche — sin contraseña) -->
+  <div id="loginOverlay" class="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-5">
+      <div>
+        <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 mb-2">Control de Caja y Almacén</span>
+        <h2 class="text-xl font-bold text-slate-900">Iniciar Turno</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Selecciona tu turno e ingresa tu nombre para abrir la caja.</p>
+      </div>
+
+      <form id="formLogin" class="space-y-4">
+        <div>
+          <label for="loginResponsable" class="block text-xs font-semibold text-slate-700 mb-1">Responsable del turno</label>
+          <input id="loginResponsable" type="text" required value="MIJAIL" placeholder="Ej. MIJAIL" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div>
+          <span class="block text-xs font-semibold text-slate-700 mb-1.5">Selecciona el turno</span>
+          <div class="grid grid-cols-3 gap-2" id="shiftSelector">
+            <button type="button" data-shift="Turno Mañana (1)" class="shift-btn py-2.5 px-2 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-900 text-xs font-bold text-center transition">
+              Turno 1<br><span class="font-medium text-indigo-700">Mañana</span>
+            </button>
+            <button type="button" data-shift="Turno Tarde (2)" class="shift-btn py-2.5 px-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold text-center hover:bg-slate-50 transition">
+              Turno 2<br><span class="font-medium text-slate-500">Tarde</span>
+            </button>
+            <button type="button" data-shift="Turno Noche (3)" class="shift-btn py-2.5 px-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold text-center hover:bg-slate-50 transition">
+              Turno 3<br><span class="font-medium text-slate-500">Noche</span>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition shadow-sm">
+          Entrar al Turno
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Control de Lubricantes, Ofertas y Entradas</h1>
+          <span id="dbStatusBadge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">Modo Local</span>
+        </div>
+        <p class="text-xs text-slate-500">
+          Activo: <strong id="headerUserBadge" class="text-indigo-700">MIJAIL — Turno Mañana (1)</strong>
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap">
+        <button id="btnOpenSupabase" type="button" class="inline-flex items-center px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition shadow-sm">
+          Conectar Supabase
+        </button>
+        <button id="btnOpenAddProduct" type="button" class="inline-flex items-center px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold transition shadow-sm">
+          + Nuevo Producto
+        </button>
+        <button id="btnGoCierre" type="button" class="inline-flex items-center px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-semibold transition shadow-sm">
+          Cierre / Excel
+        </button>
+        <button id="btnSwitchShift" type="button" class="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
+          Cambiar Turno
+        </button>
+        <button id="btnResetDemo" type="button" class="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
+          Restablecer Lista
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3 flex items-center gap-2 overflow-x-auto">
+      <button id="tabBtnCatalogo" type="button" class="tab-active px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap">
+        Productos y Venta (<span id="countProducts">35</span>)
+      </button>
+      <button id="tabBtnEntradas" type="button" class="tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap">
+        Entradas / Reposición (<span id="countEntradas">0</span>)
+      </button>
+      <button id="tabBtnVentas" type="button" class="tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap">
+        Historial de Ventas (<span id="countVentas">0</span>)
+      </button>
+      <button id="tabBtnCierre" type="button" class="tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap">
+        Vista Excel / Imprimir Cierre
+      </button>
+    </div>
+  </header>
+
+  <!-- KPI Summary Strip -->
+  <section id="kpiStrip" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="bg-white rounded-xl border border-slate-200 p-3.5">
+        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Productos Registrados</p>
+        <p id="kpiTotalProducts" class="text-2xl font-bold text-slate-900 mt-1">35</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-3.5">
+        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Unidades en Stock</p>
+        <p id="kpiTotalStock" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-3.5">
+        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Productos de Oferta</p>
+        <p id="kpiOfferCount" class="text-2xl font-bold text-amber-600 mt-1">2</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-3.5">
+        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Turno Actual</p>
+        <p id="kpiTotalSalesAmount" class="text-2xl font-bold text-indigo-600 mt-1">S/ 0.00</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+    <!-- TAB 1: PRODUCTOS Y VENTA -->
+    <div id="viewCatalogo" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div class="lg:col-span-8 space-y-3">
+        <div class="bg-white rounded-xl border border-slate-200 p-3.5 flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
+          <input id="searchProduct" type="text" placeholder="Buscar por código (ej. A1, O3) o nombre..." class="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <div class="flex items-center gap-2 flex-wrap">
+            <select id="filterCategory" class="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="all">Todas las categorías</option>
+            </select>
+            <select id="filterStock" class="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="all">Todo el stock</option>
+              <option value="available">Con stock (&gt; 0)</option>
+              <option value="empty">Agotados (0)</option>
+            </select>
+            <button id="filterOfferOnly" type="button" class="px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm font-medium hover:bg-amber-100 transition">
+              Solo Ofertas
+            </button>
+          </div>
+        </div>
+
+        <div id="tablesWrapper" class="space-y-5">
+          <!-- Tabla 1: Lubricantes y Aditivos -->
+          <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            <div class="px-4 py-2.5 bg-slate-800 text-white text-xs font-bold uppercase tracking-wider">
+              Lubricantes y Aditivos
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr class="border-b border-slate-200 bg-slate-100 text-xs uppercase text-slate-600">
+                    <th class="py-2.5 px-3 font-semibold">CD</th>
+                    <th class="py-2.5 px-3 font-semibold">Producto</th>
+                    <th class="py-2.5 px-3 font-semibold">Categoría</th>
+                    <th class="py-2.5 px-3 font-semibold text-right">Precio</th>
+                    <th class="py-2.5 px-3 font-semibold text-center">Stock</th>
+                    <th class="py-2.5 px-3 font-semibold text-center">Oferta</th>
+                    <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="productTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tabla 2: Códigos O1 al O8 (separados abajo) -->
+          <div class="bg-white rounded-xl border border-amber-300 shadow-xs overflow-hidden">
+            <div class="px-4 py-2.5 bg-amber-500 text-slate-950 text-xs font-bold uppercase tracking-wider flex items-center justify-between flex-wrap gap-2">
+              <span>Productos O1 – O8 (Aguas, Gaseosas y Otros)</span>
+              <span class="text-[11px] font-semibold bg-white/80 px-2 py-0.5 rounded-full">Solo O1 y O2 aplican para oferta gratis (&gt; S/ 200)</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr class="border-b border-amber-200 bg-amber-50 text-xs uppercase text-amber-900">
+                    <th class="py-2.5 px-3 font-semibold">CD</th>
+                    <th class="py-2.5 px-3 font-semibold">Producto</th>
+                    <th class="py-2.5 px-3 font-semibold">Categoría</th>
+                    <th class="py-2.5 px-3 font-semibold text-right">Precio</th>
+                    <th class="py-2.5 px-3 font-semibold text-center">Stock</th>
+                    <th class="py-2.5 px-3 font-semibold text-center">Oferta</th>
+                    <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="offerTableBody" class="divide-y divide-amber-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cart / POS Column -->
+      <aside class="lg:col-span-4 bg-white rounded-xl border border-slate-200 shadow-sm p-4 sticky top-28 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Carrito de Venta</h2>
+            <p class="text-xs text-slate-500">Compra &gt; S/ 200.00 = 1 producto oferta gratis</p>
+          </div>
+          <button id="btnClearCart" type="button" class="text-xs font-medium text-rose-600 hover:text-rose-700">
+            Vaciar
+          </button>
+        </div>
+
+        <div id="promoBox" class="rounded-xl p-3 border border-slate-200 bg-slate-50 space-y-2">
+          <div class="flex items-center justify-between text-xs font-semibold">
+            <span id="promoStatusText" class="text-slate-700">Supera S/ 200.00 para oferta gratis</span>
+            <span id="promoProgressLabel" class="text-indigo-600">S/ 0.00 / S/ 200.00</span>
+          </div>
+          <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div id="promoProgressBar" class="h-full bg-indigo-600 rounded-full transition-all duration-300" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div id="cartItemsContainer" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+
+        <div id="freeOfferSection" class="hidden rounded-xl border-2 border-amber-400 bg-amber-50 p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wide text-amber-800">Oferta Desbloqueada</span>
+            <span class="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">GRATIS</span>
+          </div>
+          <label for="selectFreeOffer" class="block text-xs text-amber-900 font-medium">Elige el producto de oferta que se lleva el cliente:</label>
+          <select id="selectFreeOffer" class="w-full px-3 py-2 rounded-lg border border-amber-300 bg-white text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"></select>
+        </div>
+
+        <div class="border-t border-slate-100 pt-3 space-y-2.5">
+          <div>
+            <label for="saleCustomer" class="block text-xs font-medium text-slate-600 mb-1">Cliente (opcional)</label>
+            <input id="saleCustomer" type="text" placeholder="Ej. Cliente general" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-slate-600">Subtotal</span>
+            <span id="cartSubtotal" class="font-semibold text-slate-900">S/ 0.00</span>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-slate-600">Oferta (&gt; S/ 200)</span>
+            <span id="cartOfferBadge" class="font-medium text-slate-500">No aplicada</span>
+          </div>
+          <div class="flex items-center justify-between text-lg font-bold border-t border-slate-100 pt-2">
+            <span>Total a Pagar</span>
+            <span id="cartTotal" class="text-indigo-600">S/ 0.00</span>
+          </div>
+          <button id="btnCheckout" type="button" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-sm transition shadow-sm">
+            Confirmar Venta
+          </button>
+        </div>
+      </aside>
+    </div>
+
+    <!-- TAB 2: ENTRADAS / REPOSICIÓN -->
+    <div id="viewEntradas" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div class="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Registrar Entrada de Stock</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Repone unidades y guarda quién realizó la reposición.</p>
+        </div>
+
+        <form id="formEntrada" class="space-y-3.5">
+          <div>
+            <label for="entradaProducto" class="block text-xs font-semibold text-slate-700 mb-1">Producto a reponer</label>
+            <select id="entradaProducto" required class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+          </div>
+          <div>
+            <label for="entradaCantidad" class="block text-xs font-semibold text-slate-700 mb-1">Cantidad que ingresa</label>
+            <input id="entradaCantidad" type="number" min="1" step="1" required placeholder="Ej. 10" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label for="entradaResponsable" class="block text-xs font-semibold text-slate-700 mb-1">¿Quién lo repuso?</label>
+            <input id="entradaResponsable" type="text" required value="MIJAIL" placeholder="Nombre del responsable" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label for="entradaNota" class="block text-xs font-semibold text-slate-700 mb-1">Observación / Proveedor (opcional)</label>
+            <input id="entradaNota" type="text" placeholder="Ej. Reposición en turno" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition shadow-sm">
+            Guardar Entrada y Sumar Stock
+          </button>
+        </form>
+      </div>
+
+      <div class="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Historial de Entradas / Reposiciones</h2>
+            <p class="text-xs text-slate-500">Registro de código, producto, cantidad, turno y responsable</p>
+          </div>
+          <input id="searchEntradas" type="text" placeholder="Filtrar por producto o responsable..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-xs uppercase text-slate-500 bg-slate-50">
+                <th class="py-2.5 px-3 font-semibold">Fecha y Turno</th>
+                <th class="py-2.5 px-3 font-semibold">Producto</th>
+                <th class="py-2.5 px-3 font-semibold">Cantidad</th>
+                <th class="py-2.5 px-3 font-semibold">Stock (Antes → Después)</th>
+                <th class="py-2.5 px-3 font-semibold">Repuesto por</th>
+                <th class="py-2.5 px-3 font-semibold">Nota</th>
+              </tr>
+            </thead>
+            <tbody id="entradasTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: HISTORIAL DE VENTAS -->
+    <div id="viewVentas" class="hidden bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+      <div>
+        <h2 class="text-base font-bold text-slate-900">Historial de Ventas Realizadas</h2>
+        <p class="text-xs text-slate-500">Incluye turno, responsable y producto de oferta gratis por compras mayores a S/ 200.00</p>
+      </div>
+      <div id="ventasList" class="space-y-3"></div>
+    </div>
+
+    <!-- TAB 4: VISTA EXCEL / IMPRIMIR CIERRE DE CAJA -->
+    <div id="viewCierre" class="hidden space-y-4">
+      <div class="no-print bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Vista Previa de Hoja de Cierre (Formato Excel / Impresión)</h2>
+          <p class="text-xs text-slate-500">Se calcula automáticamente con el stock inicial, reposiciones, ventas y ofertas regaladas del turno actual.</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btnPrintSheet" type="button" class="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition">
+            Imprimir / Guardar PDF
+          </button>
+          <button id="btnExportExcel" type="button" class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition">
+            Descargar Excel (.xls)
+          </button>
+          <button id="btnCloseShift" type="button" class="px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-semibold transition">
+            Cerrar Turno y Abrir Siguiente
+          </button>
+        </div>
+      </div>
+
+      <div id="printableSheet" class="bg-white rounded-xl border border-slate-300 p-5 sm:p-7 shadow-sm space-y-4 text-slate-900">
+        <div class="bg-amber-500 text-slate-950 font-extrabold text-center py-2 text-sm sm:text-base tracking-wide border border-slate-900">
+          CIERRE DE CAJA - LUBRICANTES Y OFERTAS
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs border border-slate-400 p-3 bg-slate-50">
+          <div class="space-y-1">
+            <div><span class="font-bold">FECHA:</span> <span id="sheetFecha" class="text-indigo-800 font-semibold"></span></div>
+            <div><span class="font-bold">TOTAL VENTAS:</span> <span id="sheetTotalVentas" class="bg-yellow-200 px-2 py-0.5 font-extrabold border border-slate-400">S/ 0.00</span></div>
+          </div>
+          <div class="space-y-1">
+            <div><span class="font-bold">TURNO:</span> <span id="sheetTurno" class="text-indigo-800 font-semibold"></span></div>
+            <div><span class="font-bold">UNID. VENDIDAS:</span> <span id="sheetUnidVendidas" class="font-bold text-indigo-800">0</span></div>
+          </div>
+          <div class="space-y-1">
+            <div><span class="font-bold">RESPONSABLE:</span> <span id="sheetResponsable" class="text-indigo-800 font-bold uppercase"></span></div>
+            <div><span class="font-bold">OFERTAS REGALADAS:</span> <span id="sheetOfertasRegaladas" class="font-bold text-indigo-800">0</span></div>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-extrabold uppercase text-center tracking-wider mb-1">LUBRICANTES Y ADITIVOS</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-xs">
+              <thead>
+                <tr class="bg-orange-700/80 text-white text-center">
+                  <th class="border border-slate-700 py-1.5 px-2">CD</th>
+                  <th class="border border-slate-700 py-1.5 px-2 text-left">PRODUCTO</th>
+                  <th class="border border-slate-700 py-1.5 px-2">PRECIO</th>
+                  <th class="border border-slate-700 py-1.5 px-2">INICIAL</th>
+                  <th class="border border-slate-700 py-1.5 px-2">REPOSICIÓN</th>
+                  <th class="border border-slate-700 py-1.5 px-2">VENTA</th>
+                  <th class="border border-slate-700 py-1.5 px-2">FINAL</th>
+                  <th class="border border-slate-700 py-1.5 px-2">IMPORTE</th>
+                </tr>
+              </thead>
+              <tbody id="sheetLubricantesBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-extrabold uppercase text-center tracking-wider mb-1">OFERTAS</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-xs">
+              <thead>
+                <tr class="bg-orange-700/80 text-white text-center">
+                  <th class="border border-slate-700 py-1.5 px-2">CD</th>
+                  <th class="border border-slate-700 py-1.5 px-2 text-left">PRODUCTO</th>
+                  <th class="border border-slate-700 py-1.5 px-2">PRECIO</th>
+                  <th class="border border-slate-700 py-1.5 px-2">INICIAL</th>
+                  <th class="border border-slate-700 py-1.5 px-2">REPOSICIÓN</th>
+                  <th class="border border-slate-700 py-1.5 px-2">VENTA</th>
+                  <th class="border border-slate-700 py-1.5 px-2">OFERTA</th>
+                  <th class="border border-slate-700 py-1.5 px-2">FINAL</th>
+                  <th class="border border-slate-700 py-1.5 px-2">IMPORTE</th>
+                </tr>
+              </thead>
+              <tbody id="sheetOfertasBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+          <div class="flex-1">
+            <label for="sheetObservaciones" class="block text-xs font-bold uppercase mb-1">Observaciones:</label>
+            <textarea id="sheetObservaciones" rows="2" placeholder="Anota cualquier novedad del turno..." class="w-full border border-slate-400 rounded-md p-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
+          </div>
+          <div class="space-y-3 text-right">
+            <div class="inline-flex items-center gap-3 text-xs font-extrabold">
+              <span>TOTAL A ENTREGAR OFERTAS Y LUBRICANTES:</span>
+              <span id="sheetGrandTotal" class="bg-yellow-300 border-2 border-slate-800 px-3 py-1 text-sm">S/ 0.00</span>
+            </div>
+            <div class="pt-6 text-center text-xs text-slate-600">
+              <div class="border-t border-slate-700 w-64 ml-auto pt-1 font-semibold">FIRMA DEL PERSONAL A CARGO DEL PARTE DIARIO</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal: Agregar Producto -->
+  <div id="modalProduct" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900">Agregar Nuevo Producto</h3>
+        <button id="btnCloseModal" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
+      </div>
+      <form id="formAddProduct" class="space-y-3.5">
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label for="newProdCode" class="block text-xs font-semibold text-slate-700 mb-1">Código (CD)</label>
+            <input id="newProdCode" type="text" required placeholder="Ej. A28" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div class="col-span-2">
+            <label for="newProdCategory" class="block text-xs font-semibold text-slate-700 mb-1">Categoría</label>
+            <select id="newProdCategory" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Lubricantes y Aditivos">Lubricantes y Aditivos</option>
+              <option value="Ofertas">Ofertas</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="newProdName" class="block text-xs font-semibold text-slate-700 mb-1">Nombre del producto</label>
+          <input id="newProdName" type="text" required placeholder="Ej. CASTROL GTX 20W50 1 LT" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="newProdPrice" class="block text-xs font-semibold text-slate-700 mb-1">Precio (S/)</label>
+            <input id="newProdPrice" type="number" min="0.5" step="0.1" required placeholder="35.00" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label for="newProdStock" class="block text-xs font-semibold text-slate-700 mb-1">Stock inicial</label>
+            <input id="newProdStock" type="number" min="0" step="1" required placeholder="5" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button id="btnCancelModal" type="button" class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100">
+            Cancelar
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
+            Guardar Producto
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Conectar Supabase -->
+  <div id="modalSupabase" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900">Conectar Base de Datos Supabase</h3>
+        <button id="btnCloseSupabase" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
+      </div>
+      <p class="text-xs text-slate-500">
+        Ejecuta primero el archivo <strong>supabase_schema.sql</strong> en el SQL Editor de tu proyecto Supabase y pega aquí tus credenciales públicas.
+      </p>
+      <form id="formSupabase" class="space-y-3.5">
+        <div>
+          <label for="sbUrl" class="block text-xs font-semibold text-slate-700 mb-1">Project URL</label>
+          <input id="sbUrl" type="url" required placeholder="https://xxxxxxxxxxxx.supabase.co" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+        <div>
+          <label for="sbKey" class="block text-xs font-semibold text-slate-700 mb-1">Anon Public Key</label>
+          <textarea id="sbKey" rows="3" required placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+        </div>
+        <div class="flex items-center justify-between gap-2 pt-2">
+          <button id="btnDisconnectSupabase" type="button" class="px-3 py-2 rounded-lg border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-50">
+            Usar Modo Local
+          </button>
+          <div class="flex items-center gap-2">
+            <button id="btnCancelSupabase" type="button" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100">
+              Cancelar
+            </button>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold">
+              Conectar y Sincronizar
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="hidden fixed bottom-5 right-5 z-50 max-w-sm bg-slate-900 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg"></div>
+
+  <script>
+    const STORAGE_KEY = 'tienda_lubricantes_v5';
+    const SB_CONFIG_KEY = 'tienda_supabase_cfg_v1';
+    const PROMO_THRESHOLD = 200;
+
+    const DEFAULT_PRODUCTS = [
+      { id: 1, cd: 'A1', nombre: 'VISTONY RAYVON SUPER 2T AMBAR 160ML', categoria: 'Lubricantes y Aditivos', precio: 3.00, stock: 41, esOferta: false },
+      { id: 2, cd: 'A2', nombre: 'SHELL HELIX HXS 20W50 1 LT', categoria: 'Lubricantes y Aditivos', precio: 34.00, stock: 0, esOferta: false },
+      { id: 3, cd: 'A3', nombre: 'VISTONY LIQ FRENO DOT3 - 4 ONZ', categoria: 'Lubricantes y Aditivos', precio: 7.00, stock: 0, esOferta: false },
+      { id: 4, cd: 'A4', nombre: 'REFRIGERANTE PRIMAX 1GLN', categoria: 'Lubricantes y Aditivos', precio: 60.00, stock: 2, esOferta: false },
+      { id: 5, cd: 'A5', nombre: 'SHELL HELIX HXS 10W30 1 LT', categoria: 'Lubricantes y Aditivos', precio: 35.00, stock: 0, esOferta: false },
+      { id: 6, cd: 'A6', nombre: 'SHELL HELIX HX7 10W40', categoria: 'Lubricantes y Aditivos', precio: 45.00, stock: 8, esOferta: false },
+      { id: 7, cd: 'A7', nombre: 'SHELL HELIX HX3 40', categoria: 'Lubricantes y Aditivos', precio: 23.50, stock: 2, esOferta: false },
+      { id: 8, cd: 'A8', nombre: 'SHELL RIMULA R4X 15W40 1 LT', categoria: 'Lubricantes y Aditivos', precio: 33.00, stock: 0, esOferta: false },
+      { id: 9, cd: 'A9', nombre: 'SPIRAX S2 ATF D2 1 LT', categoria: 'Lubricantes y Aditivos', precio: 32.00, stock: 7, esOferta: false },
+      { id: 10, cd: 'A10', nombre: 'SHELL ADVANCE 4T 20W50', categoria: 'Lubricantes y Aditivos', precio: 28.00, stock: 0, esOferta: false },
+      { id: 11, cd: 'A11', nombre: 'SHELL HELIX HXS 20W50 4 LT', categoria: 'Lubricantes y Aditivos', precio: 125.00, stock: 0, esOferta: false },
+      { id: 12, cd: 'A12', nombre: 'FRENOSA DOT3 8ONZ', categoria: 'Lubricantes y Aditivos', precio: 11.00, stock: 0, esOferta: false },
+      { id: 13, cd: 'A13', nombre: 'VISTONY ATF 1/4 GL', categoria: 'Lubricantes y Aditivos', precio: 16.00, stock: 3, esOferta: false },
+      { id: 14, cd: 'A14', nombre: 'VISTONY ATF 1/8 GL', categoria: 'Lubricantes y Aditivos', precio: 10.00, stock: 2, esOferta: false },
+      { id: 15, cd: 'A15', nombre: 'CASTROL MAGNATEC SAE 10W-30 X 1 LT', categoria: 'Lubricantes y Aditivos', precio: 65.00, stock: 2, esOferta: false },
+      { id: 16, cd: 'A16', nombre: 'VISTONY LIQ FRENO DOT 3X4 ONZ', categoria: 'Lubricantes y Aditivos', precio: 14.00, stock: 1, esOferta: false },
+      { id: 17, cd: 'A17', nombre: 'VISTONY LIQ FRENO DOT 4X8 ONZ', categoria: 'Lubricantes y Aditivos', precio: 15.00, stock: 0, esOferta: false },
+      { id: 18, cd: 'A18', nombre: 'VISTONY MEJORADOR OCTONAJE', categoria: 'Lubricantes y Aditivos', precio: 13.00, stock: 8, esOferta: false },
+      { id: 19, cd: 'A19', nombre: 'VISTONY RAYVON SUPER 4T 20W50 API 1L', categoria: 'Lubricantes y Aditivos', precio: 29.00, stock: 2, esOferta: false },
+      { id: 20, cd: 'A20', nombre: 'VISTONY SINTEK S210 10W30 1L', categoria: 'Lubricantes y Aditivos', precio: 30.00, stock: 0, esOferta: false },
+      { id: 21, cd: 'A21', nombre: 'VISTONY SINTEK S210 10W40 1L', categoria: 'Lubricantes y Aditivos', precio: 30.00, stock: 0, esOferta: false },
+      { id: 22, cd: 'A22', nombre: 'VISTONY BLINDAX SUPER 20W50 1/4 GL', categoria: 'Lubricantes y Aditivos', precio: 24.00, stock: 0, esOferta: false },
+      { id: 23, cd: 'A23', nombre: 'VISTONY SINTEK OIL RAYVON 4T 15W50', categoria: 'Lubricantes y Aditivos', precio: 30.00, stock: 0, esOferta: false },
+      { id: 24, cd: 'A24', nombre: 'ABRILLANTADOR DE LLANTAS', categoria: 'Lubricantes y Aditivos', precio: 6.00, stock: 10, esOferta: false },
+      { id: 25, cd: 'A25', nombre: 'VISTONY SILICONA PROTEC UV 300ML', categoria: 'Lubricantes y Aditivos', precio: 12.00, stock: 0, esOferta: false },
+      { id: 26, cd: 'A26', nombre: 'WAGNER FLUIDO DE FRENOS 8 OZ', categoria: 'Lubricantes y Aditivos', precio: 11.00, stock: 0, esOferta: false },
+      { id: 27, cd: 'A27', nombre: 'HIDROLINA ATF X 1 L', categoria: 'Lubricantes y Aditivos', precio: 13.50, stock: 0, esOferta: false },
+      { id: 28, cd: 'O1', nombre: 'AGUA MINERAL', categoria: 'Ofertas', precio: 1.00, stock: 0, esOferta: true },
+      { id: 29, cd: 'O2', nombre: 'GASEOSA 355 ml', categoria: 'Ofertas', precio: 1.00, stock: 0, esOferta: true },
+      { id: 30, cd: 'O3', nombre: 'PANETON', categoria: 'Ofertas', precio: 18.90, stock: 2, esOferta: false },
+      { id: 31, cd: 'O4', nombre: 'PAPEL HIGIENICO', categoria: 'Ofertas', precio: 1.00, stock: 0, esOferta: false },
+      { id: 32, cd: 'O5', nombre: 'GATORADE', categoria: 'Ofertas', precio: 2.00, stock: 0, esOferta: false },
+      { id: 33, cd: 'O6', nombre: 'VOLT', categoria: 'Ofertas', precio: 2.50, stock: 0, esOferta: false },
+      { id: 34, cd: 'O7', nombre: 'TRIPACK', categoria: 'Ofertas', precio: 2.50, stock: 0, esOferta: false },
+      { id: 35, cd: 'O8', nombre: 'PAPAS Y GASEOSA', categoria: 'Ofertas', precio: 2.00, stock: 0, esOferta: false }
+    ];
+
+    let supabaseClient = null;
+    let selectedLoginShift = 'Turno Mañana (1)';
+    let state = {
+      session: { loggedIn: false, responsable: 'MIJAIL', turno: 'Turno Mañana (1)', turnoId: null },
+      products: [],
+      cart: {},
+      selectedFreeOfferId: null,
+      entradas: [],
+      ventas: [],
+      shiftCounters: {},
+      activeTab: 'catalogo',
+      offerOnlyFilter: false
+    };
+
+    function buildShiftCounters(products) {
+      const counters = {};
+      products.forEach(p => {
+        counters[p.id] = { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
+      });
+      return counters;
+    }
+
+    function cloneDefaults() {
+      const products = JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
+      return {
+        session: { loggedIn: false, responsable: 'MIJAIL', turno: 'Turno Mañana (1)', turnoId: null },
+        products,
+        cart: {},
+        selectedFreeOfferId: null,
+        entradas: [],
+        ventas: [],
+        shiftCounters: buildShiftCounters(products),
+        activeTab: 'catalogo',
+        offerOnlyFilter: false
+      };
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed.products) && parsed.products.length > 0) {
+            state = { ...cloneDefaults(), ...parsed };
+            if (!state.shiftCounters) state.shiftCounters = buildShiftCounters(state.products);
+            return;
+          }
+        }
+      } catch (e) {}
+      state = cloneDefaults();
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          session: state.session,
+          products: state.products,
+          cart: state.cart,
+          selectedFreeOfferId: state.selectedFreeOfferId,
+          entradas: state.entradas,
+          ventas: state.ventas,
+          shiftCounters: state.shiftCounters
+        }));
+      } catch (e) {}
+    }
+
+    function updateDbStatusBadge() {
+      const badge = document.getElementById('dbStatusBadge');
+      if (supabaseClient) {
+        badge.textContent = 'Supabase Conectado';
+        badge.className = 'px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300';
+      } else {
+        badge.textContent = 'Modo Local';
+        badge.className = 'px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200';
+      }
+    }
+
+    async function initSupabaseFromStorage() {
+      try {
+        const raw = localStorage.getItem(SB_CONFIG_KEY);
+        if (!raw) return;
+        const cfg = JSON.parse(raw);
+        if (cfg.url && cfg.key && window.supabase) {
+          document.getElementById('sbUrl').value = cfg.url;
+          document.getElementById('sbKey').value = cfg.key;
+          supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
+          updateDbStatusBadge();
+          await syncFromSupabase();
+        }
+      } catch (e) {
+        supabaseClient = null;
+        updateDbStatusBadge();
+      }
+    }
+
+    async function syncFromSupabase() {
+      if (!supabaseClient) return;
+      try {
+        const { data: prods, error: errP } = await supabaseClient
+          .from('productos')
+          .select('id, cd, nombre, categoria, precio, stock, es_oferta_gratis')
+          .order('id', { ascending: true });
+        if (errP) throw errP;
+
+        if (prods && prods.length > 0) {
+          state.products = prods.map(p => ({
+            id: Number(p.id),
+            cd: p.cd,
+            nombre: p.nombre,
+            categoria: p.categoria,
+            precio: Number(p.precio),
+            stock: Number(p.stock),
+            esOferta: Boolean(p.es_oferta_gratis)
+          }));
+          state.products.forEach(p => {
+            if (!state.shiftCounters[p.id]) {
+              state.shiftCounters[p.id] = { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
+            }
+          });
+        }
+
+        const { data: ents, error: errE } = await supabaseClient
+          .from('entradas_stock')
+          .select('id, cantidad, stock_antes, stock_despues, responsable, nota, created_at, productos(cd, nombre), turnos(nombre_turno)')
+          .order('id', { ascending: false })
+          .limit(50);
+        if (!errE && ents) {
+          state.entradas = ents.map(e => ({
+            id: e.id,
+            fecha: new Date(e.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+            turno: e.turnos ? e.turnos.nombre_turno : '',
+            productoNombre: e.productos ? `${e.productos.cd} — ${e.productos.nombre}` : 'Producto',
+            cantidad: e.cantidad,
+            stockAntes: e.stock_antes,
+            stockDespues: e.stock_despues,
+            responsable: e.responsable,
+            nota: e.nota || ''
+          }));
+        }
+
+        const { data: vts, error: errV } = await supabaseClient
+          .from('ventas')
+          .select('id, responsable, cliente, total, created_at, turnos(nombre_turno), regalo:productos!ventas_regalo_producto_id_fkey(cd, nombre), venta_detalle(cantidad, precio_unitario, productos(cd, nombre))')
+          .order('id', { ascending: false })
+          .limit(50);
+        if (!errV && vts) {
+          state.ventas = vts.map(v => ({
+            id: v.id,
+            fecha: new Date(v.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+            turno: v.turnos ? v.turnos.nombre_turno : '',
+            responsable: v.responsable,
+            cliente: v.cliente,
+            items: (v.venta_detalle || []).map(d => ({
+              cd: d.productos ? d.productos.cd : '',
+              nombre: d.productos ? d.productos.nombre : '',
+              cantidad: d.cantidad,
+              precio: Number(d.precio_unitario)
+            })),
+            regalo: v.regalo ? `${v.regalo.cd} - ${v.regalo.nombre}` : null,
+            total: Number(v.total)
+          }));
+        }
+
+        saveState();
+        renderAll();
+      } catch (err) {
+        showToast('Error al sincronizar Supabase: ' + (err.message || 'verifica URL/Key'));
+      }
+    }
+
+    function formatMoney(n) {
+      return 'S/ ' + Number(n || 0).toFixed(2);
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add('hidden'), 3400);
+    }
+
+    function getCartSubtotal() {
+      let total = 0;
+      for (const [idStr, qty] of Object.entries(state.cart)) {
+        const prod = state.products.find(p => p.id === Number(idStr));
+        if (prod && qty > 0) total += prod.precio * qty;
+      }
+      return total;
+    }
+
+    function getAvailableOfferProducts() {
+      return state.products.filter(p => (p.cd === 'O1' || p.cd === 'O2') && p.stock > 0);
+    }
+
+    function setTab(tab) {
+      state.activeTab = tab;
+      document.getElementById('viewCatalogo').classList.toggle('hidden', tab !== 'catalogo');
+      document.getElementById('viewEntradas').classList.toggle('hidden', tab !== 'entradas');
+      document.getElementById('viewVentas').classList.toggle('hidden', tab !== 'ventas');
+      document.getElementById('viewCierre').classList.toggle('hidden', tab !== 'cierre');
+
+      const map = {
+        catalogo: 'tabBtnCatalogo',
+        entradas: 'tabBtnEntradas',
+        ventas: 'tabBtnVentas',
+        cierre: 'tabBtnCierre'
+      };
+      for (const [k, btnId] of Object.entries(map)) {
+        const btn = document.getElementById(btnId);
+        btn.className = k === tab
+          ? 'tab-active px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap'
+          : 'tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap';
+      }
+    }
+
+    function renderSession() {
+      const overlay = document.getElementById('loginOverlay');
+      overlay.classList.toggle('hidden', state.session.loggedIn);
+      document.getElementById('headerUserBadge').textContent = `${state.session.responsable} — ${state.session.turno}`;
+      const respInput = document.getElementById('entradaResponsable');
+      if (respInput && !respInput.value.trim()) {
+        respInput.value = state.session.responsable;
+      }
+    }
+
+    function renderKPIs() {
+      const totalStock = state.products.reduce((acc, p) => acc + p.stock, 0);
+      const offerCount = state.products.filter(p => p.cd === 'O1' || p.cd === 'O2').length;
+      const shiftTotalSales = state.products.reduce((acc, p) => {
+        const c = state.shiftCounters[p.id] || { venta: 0 };
+        return acc + (c.venta * p.precio);
+      }, 0);
+
+      document.getElementById('countProducts').textContent = state.products.length;
+      document.getElementById('countEntradas').textContent = state.entradas.length;
+      document.getElementById('countVentas').textContent = state.ventas.length;
+
+      document.getElementById('kpiTotalProducts').textContent = state.products.length;
+      document.getElementById('kpiTotalStock').textContent = totalStock;
+      document.getElementById('kpiOfferCount').textContent = offerCount;
+      document.getElementById('kpiTotalSalesAmount').textContent = formatMoney(shiftTotalSales);
+    }
+
+    function renderCategoryFilter() {
+      const select = document.getElementById('filterCategory');
+      const current = select.value;
+      const cats = [...new Set(state.products.map(p => p.categoria))].sort();
+      select.innerHTML = '<option value="all">Todas las categorías</option>' +
+        cats.map(c => `<option value="${c}">${c}</option>`).join('');
+      if (cats.includes(current)) select.value = current;
+    }
+
+    function buildProductRow(p) {
+      const inCart = state.cart[p.id] || 0;
+      const remaining = Math.max(0, p.stock - inCart);
+      const stockBadge = p.stock === 0
+        ? '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">0</span>'
+        : p.stock <= 3
+          ? `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">${p.stock}</span>`
+          : `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">${p.stock}</span>`;
+
+      return `
+        <tr class="hover:bg-slate-50 ${p.esOferta ? 'bg-amber-50/40' : ''}">
+          <td class="py-2.5 px-3 font-mono text-xs font-bold text-slate-600">${p.cd}</td>
+          <td class="py-2.5 px-3 font-semibold text-slate-900 text-xs sm:text-sm">${p.nombre}</td>
+          <td class="py-2.5 px-3 text-xs text-slate-500">${p.categoria}</td>
+          <td class="py-2.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap">${formatMoney(p.precio)}</td>
+          <td class="py-2.5 px-3 text-center">${stockBadge}</td>
+          <td class="py-2.5 px-3 text-center">
+            ${(p.cd === 'O1' || p.cd === 'O2')
+              ? '<span class="inline-block px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-100 border border-amber-300 text-amber-800">Oferta</span>'
+              : '<span class="text-xs text-slate-300">—</span>'}
+          </td>
+          <td class="py-2.5 px-3 text-right whitespace-nowrap">
+            <button data-action="add-cart" data-id="${p.id}" type="button" ${remaining === 0 ? 'disabled' : ''} class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold transition">
+              ${remaining === 0 ? 'Sin stock' : (inCart > 0 ? `+1 (${inCart})` : 'Vender')}
+            </button>
+          </td>
+        </tr>
+      `;
+    }
+
+    function renderProducts() {
+      const tbodyMain = document.getElementById('productTableBody');
+      const tbodyOffers = document.getElementById('offerTableBody');
+      const query = document.getElementById('searchProduct').value.trim().toLowerCase();
+      const category = document.getElementById('filterCategory').value;
+      const stockFilter = document.getElementById('filterStock').value;
+
+      const filtered = state.products.filter(p => {
+        const matchesQuery = !query || p.nombre.toLowerCase().includes(query) || p.cd.toLowerCase().includes(query);
+        const matchesCat = category === 'all' || p.categoria === category;
+        const matchesOffer = !state.offerOnlyFilter || (p.cd === 'O1' || p.cd === 'O2');
+        const matchesStock = stockFilter === 'all' || (stockFilter === 'available' ? p.stock > 0 : p.stock === 0);
+        return matchesQuery && matchesCat && matchesOffer && matchesStock;
+      });
+
+      const mainList = filtered.filter(p => !/^O\d+$/i.test(p.cd) && p.categoria !== 'Ofertas');
+      const offerList = filtered.filter(p => /^O\d+$/i.test(p.cd) || p.categoria === 'Ofertas');
+
+      tbodyMain.innerHTML = mainList.length === 0
+        ? `<tr><td colspan="7" class="py-6 text-center text-slate-400 text-sm">No hay lubricantes/aditivos con esos filtros.</td></tr>`
+        : mainList.map(buildProductRow).join('');
+
+      tbodyOffers.innerHTML = offerList.length === 0
+        ? `<tr><td colspan="7" class="py-6 text-center text-slate-400 text-sm">No hay productos O1–O8 con esos filtros.</td></tr>`
+        : offerList.map(buildProductRow).join('');
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cartItemsContainer');
+      const subtotal = getCartSubtotal();
+      const entries = Object.entries(state.cart).filter(([, qty]) => qty > 0);
+
+      if (entries.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-5">El carrito está vacío. Haz clic en "Vender" en cualquier producto con stock.</p>';
+      } else {
+        container.innerHTML = entries.map(([idStr, qty]) => {
+          const p = state.products.find(item => item.id === Number(idStr));
+          if (!p) return '';
+          return `
+            <div class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-bold text-slate-800 truncate"><span class="text-slate-400 font-mono mr-1">${p.cd}</span>${p.nombre}</p>
+                <p class="text-xs text-slate-500">${formatMoney(p.precio)} c/u</p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button data-action="cart-dec" data-id="${p.id}" type="button" class="w-6 h-6 rounded-md bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100">-</button>
+                <span class="w-6 text-center text-xs font-bold">${qty}</span>
+                <button data-action="cart-inc" data-id="${p.id}" type="button" ${qty >= p.stock ? 'disabled' : ''} class="w-6 h-6 rounded-md bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 disabled:opacity-40">+</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      const unlocked = subtotal > PROMO_THRESHOLD;
+      const pct = Math.min(100, (subtotal / PROMO_THRESHOLD) * 100);
+      const promoBox = document.getElementById('promoBox');
+      const promoStatusText = document.getElementById('promoStatusText');
+      const promoProgressLabel = document.getElementById('promoProgressLabel');
+      const promoProgressBar = document.getElementById('promoProgressBar');
+      const freeSection = document.getElementById('freeOfferSection');
+      const freeSelect = document.getElementById('selectFreeOffer');
+      const cartOfferBadge = document.getElementById('cartOfferBadge');
+
+      promoProgressBar.style.width = `${pct}%`;
+      promoProgressLabel.textContent = `${formatMoney(subtotal)} / ${formatMoney(PROMO_THRESHOLD)}`;
+
+      const availableOffers = getAvailableOfferProducts();
+
+      if (unlocked) {
+        promoBox.className = 'rounded-xl p-3 border border-emerald-300 bg-emerald-50 space-y-2';
+        promoStatusText.textContent = '¡Oferta desbloqueada! Lleva 1 producto gratis';
+        promoStatusText.className = 'text-emerald-800';
+        promoProgressBar.className = 'h-full bg-emerald-600 rounded-full transition-all duration-300';
+
+        if (availableOffers.length > 0) {
+          freeSection.classList.remove('hidden');
+          freeSelect.innerHTML = availableOffers.map(o => `<option value="${o.id}">${o.cd} - ${o.nombre} (Stock: ${o.stock}) — GRATIS</option>`).join('');
+          if (state.selectedFreeOfferId && availableOffers.some(o => o.id === state.selectedFreeOfferId)) {
+            freeSelect.value = String(state.selectedFreeOfferId);
+          } else {
+            state.selectedFreeOfferId = availableOffers[0].id;
+            freeSelect.value = String(state.selectedFreeOfferId);
+          }
+          cartOfferBadge.textContent = '1 producto GRATIS';
+          cartOfferBadge.className = 'font-bold text-emerald-600';
+        } else {
+          freeSection.classList.add('hidden');
+          state.selectedFreeOfferId = null;
+          cartOfferBadge.textContent = 'Sin stock en aguas/gaseosas';
+          cartOfferBadge.className = 'font-medium text-amber-600';
+        }
+      } else {
+        promoBox.className = 'rounded-xl p-3 border border-slate-200 bg-slate-50 space-y-2';
+        const diff = Math.max(0.01, (PROMO_THRESHOLD + 0.01) - subtotal);
+        promoStatusText.textContent = subtotal === 0
+          ? 'Supera S/ 200.00 para oferta gratis'
+          : `Agrega ${formatMoney(diff)} más para oferta gratis`;
+        promoStatusText.className = 'text-slate-700';
+        promoProgressBar.className = 'h-full bg-indigo-600 rounded-full transition-all duration-300';
+        freeSection.classList.add('hidden');
+        state.selectedFreeOfferId = null;
+        cartOfferBadge.textContent = 'No aplicada';
+        cartOfferBadge.className = 'font-medium text-slate-500';
+      }
+
+      document.getElementById('cartSubtotal').textContent = formatMoney(subtotal);
+      document.getElementById('cartTotal').textContent = formatMoney(subtotal);
+      document.getElementById('btnCheckout').disabled = entries.length === 0;
+    }
+
+    function renderEntradasSelect() {
+      const sel = document.getElementById('entradaProducto');
+      const prev = sel.value;
+      sel.innerHTML = state.products.map(p => `<option value="${p.id}">${p.cd} — ${p.nombre} (Stock: ${p.stock})</option>`).join('');
+      if (prev && state.products.some(p => String(p.id) === prev)) sel.value = prev;
+    }
+
+    function renderEntradasTable() {
+      const tbody = document.getElementById('entradasTableBody');
+      const q = document.getElementById('searchEntradas').value.trim().toLowerCase();
+      const list = state.entradas.filter(e =>
+        !q || e.productoNombre.toLowerCase().includes(q) || e.responsable.toLowerCase().includes(q) || (e.nota || '').toLowerCase().includes(q)
+      );
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 text-sm">Aún no hay entradas registradas. Usa el formulario para reponer stock.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(e => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2.5 px-3 text-xs text-slate-500 whitespace-nowrap">${e.fecha}<br><span class="text-indigo-600 font-medium">${e.turno || ''}</span></td>
+          <td class="py-2.5 px-3 font-medium text-slate-900">${e.productoNombre}</td>
+          <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">+${e.cantidad}</span></td>
+          <td class="py-2.5 px-3 text-xs text-slate-600">${e.stockAntes} → <strong class="text-slate-900">${e.stockDespues}</strong></td>
+          <td class="py-2.5 px-3 font-semibold text-indigo-700">${e.responsable}</td>
+          <td class="py-2.5 px-3 text-xs text-slate-500">${e.nota || '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderVentas() {
+      const container = document.getElementById('ventasList');
+      if (state.ventas.length === 0) {
+        container.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">Todavía no se han registrado ventas.</p>';
+        return;
+      }
+
+      container.innerHTML = state.ventas.map(v => `
+        <div class="rounded-xl border border-slate-200 p-4 space-y-2 bg-slate-50/50">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span class="text-xs font-bold text-indigo-600">Venta #${v.id}</span>
+              <span class="text-xs text-slate-500 ml-2">${v.fecha}</span>
+              <span class="text-xs font-semibold text-slate-700 ml-2">• ${v.turno || ''} (${v.responsable || ''})</span>
+              <span class="text-xs font-medium text-slate-700 ml-2">• Cliente: ${v.cliente}</span>
+            </div>
+            <span class="text-base font-extrabold text-slate-900">${formatMoney(v.total)}</span>
+          </div>
+          <div class="text-xs text-slate-600 flex flex-wrap gap-2">
+            ${v.items.map(i => `<span class="px-2 py-1 rounded-md bg-white border border-slate-200">${i.cd} ${i.nombre} x${i.cantidad} (${formatMoney(i.precio * i.cantidad)})</span>`).join('')}
+            ${v.regalo ? `<span class="px-2 py-1 rounded-md bg-amber-100 border border-amber-300 text-amber-900 font-semibold">Oferta (&gt;S/200): ${v.regalo} — GRATIS</span>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderCierreSheet() {
+      const lubBody = document.getElementById('sheetLubricantesBody');
+      const ofBody = document.getElementById('sheetOfertasBody');
+
+      const lubs = state.products.filter(p => p.categoria !== 'Ofertas');
+      const offs = state.products.filter(p => p.categoria === 'Ofertas');
+
+      let totalLub = 0;
+      let totalOf = 0;
+      let totalUnidVendidas = 0;
+      let totalOfertasRegaladas = 0;
+
+      lubBody.innerHTML = lubs.map(p => {
+        const c = state.shiftCounters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
+        const imp = c.venta * p.precio;
+        totalLub += imp;
+        totalUnidVendidas += c.venta;
+        const zeroCls = c.inicial === 0 ? 'bg-rose-100/70' : '';
+        const finalCls = p.stock === 0 ? 'bg-rose-100/70' : '';
+        const ventaCls = c.venta > 0 ? 'bg-teal-100 font-bold' : '';
+        return `
+          <tr class="text-center">
+            <td class="border border-slate-400 py-1 px-2 font-mono font-bold bg-sky-50">${p.cd}</td>
+            <td class="border border-slate-400 py-1 px-2 text-left bg-sky-50 font-medium">${p.nombre}</td>
+            <td class="border border-slate-400 py-1 px-2 text-right bg-sky-50">${formatMoney(p.precio)}</td>
+            <td class="border border-slate-400 py-1 px-2 ${zeroCls}">${c.inicial}</td>
+            <td class="border border-slate-400 py-1 px-2">${c.reposicion}</td>
+            <td class="border border-slate-400 py-1 px-2 ${ventaCls}">${c.venta}</td>
+            <td class="border border-slate-400 py-1 px-2 ${finalCls}">${p.stock}</td>
+            <td class="border border-slate-400 py-1 px-2 text-right font-semibold">${imp > 0 ? formatMoney(imp) : 'S/ -'}</td>
+          </tr>
+        `;
+      }).join('') + `
+        <tr class="font-extrabold bg-slate-100">
+          <td colspan="7" class="border border-slate-400 py-1.5 px-2 text-right">TOTAL LUBRICANTES</td>
+          <td class="border border-slate-400 py-1.5 px-2 text-right">${formatMoney(totalLub)}</td>
+        </tr>
+      `;
+
+      ofBody.innerHTML = offs.map(p => {
+        const c = state.shiftCounters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
+        const imp = c.venta * p.precio;
+        totalOf += imp;
+        totalUnidVendidas += c.venta;
+        totalOfertasRegaladas += c.oferta;
+        const zeroCls = c.inicial === 0 ? 'bg-rose-100/70' : '';
+        const finalCls = p.stock === 0 ? 'bg-rose-100/70' : '';
+        const ventaCls = c.venta > 0 ? 'bg-teal-100 font-bold' : '';
+        return `
+          <tr class="text-center">
+            <td class="border border-slate-400 py-1 px-2 font-mono font-bold bg-sky-50">${p.cd}</td>
+            <td class="border border-slate-400 py-1 px-2 text-left bg-sky-50 font-medium">${p.nombre}</td>
+            <td class="border border-slate-400 py-1 px-2 text-right bg-sky-50">${formatMoney(p.precio)}</td>
+            <td class="border border-slate-400 py-1 px-2 ${zeroCls}">${c.inicial}</td>
+            <td class="border border-slate-400 py-1 px-2">${c.reposicion}</td>
+            <td class="border border-slate-400 py-1 px-2 ${ventaCls}">${c.venta}</td>
+            <td class="border border-slate-400 py-1 px-2 font-bold text-amber-800">${c.oferta}</td>
+            <td class="border border-slate-400 py-1 px-2 ${finalCls}">${p.stock}</td>
+            <td class="border border-slate-400 py-1 px-2 text-right font-semibold">${imp > 0 ? formatMoney(imp) : 'S/ -'}</td>
+          </tr>
+        `;
+      }).join('') + `
+        <tr class="font-extrabold bg-slate-100">
+          <td colspan="8" class="border border-slate-400 py-1.5 px-2 text-right">TOTAL OFERTAS</td>
+          <td class="border border-slate-400 py-1.5 px-2 text-right">${formatMoney(totalOf)}</td>
+        </tr>
+      `;
+
+      const grandTotal = totalLub + totalOf;
+      const fechaStr = new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      document.getElementById('sheetFecha').textContent = fechaStr;
+      document.getElementById('sheetTurno').textContent = state.session.turno;
+      document.getElementById('sheetResponsable').textContent = state.session.responsable;
+      document.getElementById('sheetTotalVentas').textContent = formatMoney(grandTotal);
+      document.getElementById('sheetUnidVendidas').textContent = totalUnidVendidas;
+      document.getElementById('sheetOfertasRegaladas').textContent = totalOfertasRegaladas;
+      document.getElementById('sheetGrandTotal').textContent = formatMoney(grandTotal);
+    }
+
+    function exportExcel() {
+      const sheetHtml = document.getElementById('printableSheet').innerHTML;
+      const doc = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head><meta charset="UTF-8"><style>table { border-collapse: collapse; } td, th { border: 1px solid #334155; padding: 4px 6px; font-family: Arial, sans-serif; font-size: 11px; }</style></head>
+        <body>${sheetHtml}</body>
+        </html>
+      `;
+      const blob = new Blob(['\ufeff', doc], { type: 'application/vnd.ms-excel' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeShift = state.session.turno.replace(/[^a-zA-Z0-9]/g, '_');
+      a.download = `Cierre_Caja_${safeShift}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Archivo Excel (.xls) descargado');
+    }
+
+    function renderAll() {
+      updateDbStatusBadge();
+      renderSession();
+      renderKPIs();
+      renderCategoryFilter();
+      renderProducts();
+      renderCart();
+      renderEntradasSelect();
+      renderEntradasTable();
+      renderVentas();
+      renderCierreSheet();
+    }
+
+    // Login Listeners
+    document.getElementById('shiftSelector').addEventListener('click', (e) => {
+      const btn = e.target.closest('.shift-btn');
+      if (!btn) return;
+      selectedLoginShift = btn.dataset.shift;
+      document.querySelectorAll('.shift-btn').forEach(b => {
+        if (b === btn) {
+          b.className = 'shift-btn py-2.5 px-2 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-900 text-xs font-bold text-center transition';
+        } else {
+          b.className = 'shift-btn py-2.5 px-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-bold text-center hover:bg-slate-50 transition';
+        }
+      });
+    });
+
+    document.getElementById('formLogin').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const resp = document.getElementById('loginResponsable').value.trim().toUpperCase() || 'MIJAIL';
+      const numTurno = selectedLoginShift.includes('1') ? 1 : selectedLoginShift.includes('2') ? 2 : 3;
+      let turnoId = null;
+
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('turnos')
+            .insert({ numero_turno: numTurno, nombre_turno: selectedLoginShift, responsable: resp, estado: 'abierto' })
+            .select('id')
+            .single();
+          if (error) throw error;
+          turnoId = data.id;
+        } catch (err) {
+          showToast('No se pudo abrir turno en Supabase: ' + err.message);
+        }
+      }
+
+      state.session = { loggedIn: true, responsable: resp, turno: selectedLoginShift, turnoId };
+      document.getElementById('entradaResponsable').value = resp;
+      saveState();
+      renderAll();
+      showToast(`Sesión iniciada: ${resp} (${selectedLoginShift})`);
+    });
+
+    document.getElementById('btnSwitchShift').addEventListener('click', () => {
+      state.session.loggedIn = false;
+      saveState();
+      renderSession();
+    });
+
+    // Supabase Modal Listeners
+    const modalSb = document.getElementById('modalSupabase');
+    document.getElementById('btnOpenSupabase').addEventListener('click', () => modalSb.classList.remove('hidden'));
+    document.getElementById('btnCloseSupabase').addEventListener('click', () => modalSb.classList.add('hidden'));
+    document.getElementById('btnCancelSupabase').addEventListener('click', () => modalSb.classList.add('hidden'));
+
+    document.getElementById('formSupabase').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const url = document.getElementById('sbUrl').value.trim();
+      const key = document.getElementById('sbKey').value.trim();
+      if (!url || !key || !window.supabase) return;
+
+      try {
+        supabaseClient = window.supabase.createClient(url, key);
+        localStorage.setItem(SB_CONFIG_KEY, JSON.stringify({ url, key }));
+        modalSb.classList.add('hidden');
+        updateDbStatusBadge();
+        await syncFromSupabase();
+        showToast('Conectado y sincronizado con Supabase');
+      } catch (err) {
+        supabaseClient = null;
+        updateDbStatusBadge();
+        showToast('Error al conectar con Supabase: ' + err.message);
+      }
+    });
+
+    document.getElementById('btnDisconnectSupabase').addEventListener('click', () => {
+      supabaseClient = null;
+      try { localStorage.removeItem(SB_CONFIG_KEY); } catch (e) {}
+      modalSb.classList.add('hidden');
+      updateDbStatusBadge();
+      showToast('Cambiado a Modo Local');
+    });
+
+    // Navigation Listeners
+    document.getElementById('tabBtnCatalogo').addEventListener('click', () => setTab('catalogo'));
+    document.getElementById('tabBtnEntradas').addEventListener('click', () => setTab('entradas'));
+    document.getElementById('tabBtnVentas').addEventListener('click', () => setTab('ventas'));
+    document.getElementById('tabBtnCierre').addEventListener('click', () => {
+      renderCierreSheet();
+      setTab('cierre');
+    });
+    document.getElementById('btnGoCierre').addEventListener('click', () => {
+      renderCierreSheet();
+      setTab('cierre');
+    });
+
+    document.getElementById('btnPrintSheet').addEventListener('click', () => window.print());
+    document.getElementById('btnExportExcel').addEventListener('click', exportExcel);
+    document.getElementById('btnCloseShift').addEventListener('click', async () => {
+      if (supabaseClient && state.session.turnoId) {
+        try {
+          const obs = document.getElementById('sheetObservaciones').value.trim();
+          await supabaseClient
+            .from('turnos')
+            .update({ estado: 'cerrado', fecha_cierre: new Date().toISOString(), observaciones: obs || null })
+            .eq('id', state.session.turnoId);
+        } catch (err) {
+          showToast('Aviso: no se pudo cerrar el turno en Supabase (' + err.message + ')');
+        }
+      }
+      state.shiftCounters = buildShiftCounters(state.products);
+      state.session.loggedIn = false;
+      state.session.turnoId = null;
+      saveState();
+      renderAll();
+      showToast('Turno cerrado. El stock final quedó como inicial para el siguiente turno.');
+    });
+
+    // Catalog & Cart Listeners
+    document.getElementById('searchProduct').addEventListener('input', renderProducts);
+    document.getElementById('filterCategory').addEventListener('change', renderProducts);
+    document.getElementById('filterStock').addEventListener('change', renderProducts);
+    document.getElementById('filterOfferOnly').addEventListener('click', () => {
+      state.offerOnlyFilter = !state.offerOnlyFilter;
+      const btn = document.getElementById('filterOfferOnly');
+      btn.className = state.offerOnlyFilter
+        ? 'px-3 py-2 rounded-lg border border-amber-500 bg-amber-500 text-white text-sm font-semibold transition'
+        : 'px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm font-medium hover:bg-amber-100 transition';
+      renderProducts();
+    });
+
+    document.getElementById('tablesWrapper').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const id = Number(btn.dataset.id);
+      const action = btn.dataset.action;
+      const prod = state.products.find(p => p.id === id);
+      if (!prod) return;
+
+      if (action === 'add-cart') {
+        const current = state.cart[id] || 0;
+        if (current < prod.stock) {
+          state.cart[id] = current + 1;
+          saveState();
+          renderProducts();
+          renderCart();
+          showToast(`Agregado: ${prod.cd} - ${prod.nombre}`);
+        }
+      }
+    });
+
+    document.getElementById('cartItemsContainer').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const id = Number(btn.dataset.id);
+      const action = btn.dataset.action;
+      const prod = state.products.find(p => p.id === id);
+      if (!prod) return;
+
+      const current = state.cart[id] || 0;
+      if (action === 'cart-inc' && current < prod.stock) {
+        state.cart[id] = current + 1;
+      } else if (action === 'cart-dec') {
+        if (current <= 1) delete state.cart[id];
+        else state.cart[id] = current - 1;
+      }
+      saveState();
+      renderProducts();
+      renderCart();
+    });
+
+    document.getElementById('selectFreeOffer').addEventListener('change', (e) => {
+      state.selectedFreeOfferId = Number(e.target.value);
+      saveState();
+    });
+
+    document.getElementById('btnClearCart').addEventListener('click', () => {
+      state.cart = {};
+      state.selectedFreeOfferId = null;
+      saveState();
+      renderProducts();
+      renderCart();
+    });
+
+    document.getElementById('btnCheckout').addEventListener('click', async () => {
+      const entries = Object.entries(state.cart).filter(([, qty]) => qty > 0);
+      if (entries.length === 0) return;
+
+      const subtotal = getCartSubtotal();
+      const customer = document.getElementById('saleCustomer').value.trim() || 'Cliente general';
+
+      for (const [idStr, qty] of entries) {
+        const prod = state.products.find(p => p.id === Number(idStr));
+        if (!prod || prod.stock < qty) {
+          showToast(`Stock insuficiente para ${prod ? prod.nombre : 'producto'}`);
+          return;
+        }
+      }
+
+      const giftId = (subtotal > PROMO_THRESHOLD && state.selectedFreeOfferId) ? state.selectedFreeOfferId : null;
+
+      if (supabaseClient) {
+        try {
+          const itemsPayload = entries.map(([idStr, qty]) => ({ producto_id: Number(idStr), cantidad: qty }));
+          const { error } = await supabaseClient.rpc('registrar_venta', {
+            p_responsable: state.session.responsable,
+            p_turno_id: state.session.turnoId,
+            p_cliente: customer,
+            p_items: itemsPayload,
+            p_regalo_producto_id: giftId
+          });
+          if (error) throw error;
+
+          entries.forEach(([idStr, qty]) => {
+            const id = Number(idStr);
+            if (!state.shiftCounters[id]) state.shiftCounters[id] = { inicial: 0, reposicion: 0, venta: 0, oferta: 0 };
+            state.shiftCounters[id].venta += qty;
+          });
+          if (giftId) {
+            if (!state.shiftCounters[giftId]) state.shiftCounters[giftId] = { inicial: 0, reposicion: 0, venta: 0, oferta: 0 };
+            state.shiftCounters[giftId].oferta += 1;
+          }
+
+          state.cart = {};
+          state.selectedFreeOfferId = null;
+          document.getElementById('saleCustomer').value = '';
+          await syncFromSupabase();
+          showToast(giftId ? 'Venta y regalo guardados en Supabase' : 'Venta guardada en Supabase');
+          return;
+        } catch (err) {
+          showToast('Error Supabase al vender: ' + err.message);
+          return;
+        }
+      }
+
+      // Modo Local
+      const itemsSold = [];
+      for (const [idStr, qty] of entries) {
+        const prod = state.products.find(p => p.id === Number(idStr));
+        prod.stock -= qty;
+        if (!state.shiftCounters[prod.id]) state.shiftCounters[prod.id] = { inicial: prod.stock + qty, reposicion: 0, venta: 0, oferta: 0 };
+        state.shiftCounters[prod.id].venta += qty;
+        itemsSold.push({ id: prod.id, cd: prod.cd, nombre: prod.nombre, cantidad: qty, precio: prod.precio });
+      }
+
+      let regaloNombre = null;
+      if (giftId) {
+        const gift = state.products.find(p => p.id === giftId);
+        if (gift && gift.stock > 0) {
+          gift.stock -= 1;
+          if (!state.shiftCounters[gift.id]) state.shiftCounters[gift.id] = { inicial: gift.stock + 1, reposicion: 0, venta: 0, oferta: 0 };
+          state.shiftCounters[gift.id].oferta += 1;
+          regaloNombre = `${gift.cd} - ${gift.nombre}`;
+        }
+      }
+
+      const now = new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
+      state.ventas.unshift({
+        id: state.ventas.length + 1,
+        fecha: now,
+        turno: state.session.turno,
+        responsable: state.session.responsable,
+        cliente: customer,
+        items: itemsSold,
+        regalo: regaloNombre,
+        total: subtotal
+      });
+
+      state.cart = {};
+      state.selectedFreeOfferId = null;
+      document.getElementById('saleCustomer').value = '';
+      saveState();
+      renderAll();
+      showToast(regaloNombre ? `Venta registrada con oferta gratis: ${regaloNombre}` : 'Venta registrada correctamente');
+    });
+
+    document.getElementById('formEntrada').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const prodId = Number(document.getElementById('entradaProducto').value);
+      const cantidad = parseInt(document.getElementById('entradaCantidad').value, 10);
+      const responsable = document.getElementById('entradaResponsable').value.trim().toUpperCase();
+      const nota = document.getElementById('entradaNota').value.trim();
+
+      const prod = state.products.find(p => p.id === prodId);
+      if (!prod || !cantidad || cantidad <= 0 || !responsable) return;
+
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient.rpc('registrar_entrada_stock', {
+            p_producto_id: prodId,
+            p_cantidad: cantidad,
+            p_responsable: responsable,
+            p_turno_id: state.session.turnoId,
+            p_nota: nota || null
+          });
+          if (error) throw error;
+
+          if (!state.shiftCounters[prodId]) state.shiftCounters[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
+          state.shiftCounters[prodId].reposicion += cantidad;
+          document.getElementById('entradaCantidad').value = '';
+          document.getElementById('entradaNota').value = '';
+          await syncFromSupabase();
+          showToast(`Entrada guardada en Supabase: +${cantidad} a ${prod.nombre}`);
+          return;
+        } catch (err) {
+          showToast('Error Supabase en entrada: ' + err.message);
+          return;
+        }
+      }
+
+      const stockAntes = prod.stock;
+      prod.stock += cantidad;
+      if (!state.shiftCounters[prod.id]) state.shiftCounters[prod.id] = { inicial: stockAntes, reposicion: 0, venta: 0, oferta: 0 };
+      state.shiftCounters[prod.id].reposicion += cantidad;
+
+      const now = new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
+      state.entradas.unshift({
+        id: Date.now(),
+        fecha: now,
+        turno: state.session.turno,
+        productoId: prod.id,
+        productoNombre: `${prod.cd} — ${prod.nombre}`,
+        cantidad,
+        stockAntes,
+        stockDespues: prod.stock,
+        responsable,
+        nota
+      });
+
+      document.getElementById('entradaCantidad').value = '';
+      document.getElementById('entradaNota').value = '';
+      saveState();
+      renderAll();
+      showToast(`Entrada registrada: +${cantidad} a ${prod.nombre} por ${responsable}`);
+    });
+
+    document.getElementById('searchEntradas').addEventListener('input', renderEntradasTable);
+
+    const modal = document.getElementById('modalProduct');
+    document.getElementById('btnOpenAddProduct').addEventListener('click', () => modal.classList.remove('hidden'));
+    document.getElementById('btnCloseModal').addEventListener('click', () => modal.classList.add('hidden'));
+    document.getElementById('btnCancelModal').addEventListener('click', () => modal.classList.add('hidden'));
+
+    document.getElementById('formAddProduct').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cd = document.getElementById('newProdCode').value.trim().toUpperCase();
+      const categoria = document.getElementById('newProdCategory').value;
+      const nombre = document.getElementById('newProdName').value.trim().toUpperCase();
+      const precio = parseFloat(document.getElementById('newProdPrice').value);
+      const stock = parseInt(document.getElementById('newProdStock').value, 10);
+      const esOferta = false;
+
+      if (!cd || !nombre || !categoria || isNaN(precio) || isNaN(stock)) return;
+
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient
+            .from('productos')
+            .insert({ cd, nombre, categoria, precio, stock, es_oferta_gratis: esOferta });
+          if (error) throw error;
+          e.target.reset();
+          modal.classList.add('hidden');
+          await syncFromSupabase();
+          showToast(`Producto guardado en Supabase: ${cd} - ${nombre}`);
+          return;
+        } catch (err) {
+          showToast('Error Supabase al agregar producto: ' + err.message);
+          return;
+        }
+      }
+
+      const nextId = state.products.reduce((m, p) => Math.max(m, p.id), 0) + 1;
+      state.products.push({ id: nextId, cd, nombre, categoria, precio, stock, esOferta });
+      state.shiftCounters[nextId] = { inicial: stock, reposicion: 0, venta: 0, oferta: 0 };
+
+      e.target.reset();
+      modal.classList.add('hidden');
+      saveState();
+      renderAll();
+      showToast(`Producto agregado: ${cd} - ${nombre}`);
+    });
+
+    document.getElementById('btnResetDemo').addEventListener('click', () => {
+      const currentSession = state.session;
+      state = cloneDefaults();
+      state.session = currentSession;
+      saveState();
+      renderAll();
+      showToast('Lista restablecida con los 35 productos de tu cierre de caja');
+    });
+
+    loadState();
+    renderAll();
+    initSupabaseFromStorage();
+  </script>
+</body>
+</html>
