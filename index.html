@@ -326,12 +326,15 @@
           <h2 class="text-base font-bold text-slate-900">Historial de Ventas Realizadas (Solo Admin)</h2>
           <p class="text-xs text-slate-500">Incluye turno, responsable y producto de oferta gratis por compras mayores a S/ 200.00</p>
         </div>
-        <select id="filterVentasTurno" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="searchVentas" type="text" placeholder="Buscar por N° boleta, producto, fecha..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <select id="filterVentasTurno" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="all">Todos los turnos</option>
           <option value="Turno Mañana (1)">Turno Mañana (1)</option>
           <option value="Turno Tarde (2)">Turno Tarde (2)</option>
           <option value="Turno Noche (3)">Turno Noche (3)</option>
-        </select>
+          </select>
+        </div>
       </div>
       <!-- Formulario Admin: Registrar venta olvidada de cualquier día y turno -->
       <form id="formAdminAddSale" class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
@@ -1550,7 +1553,19 @@
     function renderVentas() {
       const container = document.getElementById('ventasList');
       const turnoFilter = document.getElementById('filterVentasTurno').value;
-      const list = state.ventas.filter(v => turnoFilter === 'all' || v.turno === turnoFilter);
+      const q = (document.getElementById('searchVentas')?.value || '').trim().toLowerCase();
+      const list = state.ventas.filter(v => {
+        const matchTurno = turnoFilter === 'all' || v.turno === turnoFilter;
+        if (!matchTurno) return false;
+        if (!q) return true;
+        const itemsText = (v.items || []).map(i => `${i.cd} ${i.nombre}`).join(' ').toLowerCase();
+        return (v.boleta || '').toLowerCase().includes(q)
+          || (v.cliente || '').toLowerCase().includes(q)
+          || (v.responsable || '').toLowerCase().includes(q)
+          || (v.fecha || '').toLowerCase().includes(q)
+          || (v.regalo || '').toLowerCase().includes(q)
+          || itemsText.includes(q);
+      });
 
       if (list.length === 0) {
         container.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">Todavía no se han registrado ventas para este filtro.</p>';
@@ -1916,14 +1931,16 @@
       const dayStartMs = new Date(getOperationalDayStartISO()).getTime();
       const ids = Array.isArray(state.shiftSaleIds) ? state.shiftSaleIds : [];
       return state.ventas.filter(v => {
-        if (v.boleta) return false;
+        if (v.boleta && v.boleta.trim() !== '') return false;
         if (ids.includes(v.id)) return true;
         const vMs = v.rawDate ? new Date(v.rawDate).getTime() : 0;
-        return v.turno === state.session.turno && vMs >= dayStartMs;
+        if (vMs < dayStartMs) return false;
+        return !v.turno || v.turno === state.session.turno || state.session.role !== 'usuario';
       });
     }
 
     document.getElementById('btnCloseShift').addEventListener('click', async () => {
+      if (supabaseClient) await syncFromSupabase();
       const pending = getPendingShiftSales();
       if (pending.length === 0) {
         await executeCloseShift();
@@ -1973,6 +1990,15 @@
       const pending = getPendingShiftSales();
       const offerInput = document.querySelector('#pendingBoletasList input[data-boleta-group="offers"]');
       const offerBoleta = offerInput ? offerInput.value.trim().toUpperCase() : '';
+      if (offerInput && !offerBoleta) {
+        showToast('Ingresa el N° de boleta para las ofertas');
+        return;
+      }
+      const paidCheck = Array.from(document.querySelectorAll('#pendingBoletasList input[data-boleta-sale-id]'));
+      if (paidCheck.some(inp => !inp.value.trim())) {
+        showToast('Completa todos los números de boleta antes de cerrar el turno');
+        return;
+      }
 
       try {
         if (offerInput && offerBoleta) {
@@ -2240,6 +2266,7 @@
 
     document.getElementById('searchEntradas').addEventListener('input', renderEntradasTable);
     document.getElementById('filterVentasTurno').addEventListener('change', renderVentas);
+    document.getElementById('searchVentas').addEventListener('input', renderVentas);
 
     // Modal: Agregar Stock
     const modal = document.getElementById('modalProduct');
