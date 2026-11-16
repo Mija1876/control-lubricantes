@@ -333,6 +333,52 @@
           <option value="Turno Noche (3)">Turno Noche (3)</option>
         </select>
       </div>
+      <!-- Formulario Admin: Registrar venta olvidada de cualquier día y turno -->
+      <form id="formAdminAddSale" class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-indigo-950">+ Registrar Venta Olvidada (Regularización Admin)</h3>
+          <span class="text-[11px] font-semibold text-indigo-700">Descuenta stock y suma al reporte del mes elegido</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
+          <div>
+            <label for="adminSaleDate" class="block text-[11px] font-semibold text-slate-700 mb-1">Fecha</label>
+            <input id="adminSaleDate" type="date" required class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label for="adminSaleShift" class="block text-[11px] font-semibold text-slate-700 mb-1">Turno</label>
+            <select id="adminSaleShift" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Turno Mañana (1)">Turno 1: Mañana</option>
+              <option value="Turno Tarde (2)">Turno 2: Tarde</option>
+              <option value="Turno Noche (3)">Turno 3: Noche</option>
+            </select>
+          </div>
+          <div class="lg:col-span-2">
+            <label for="adminSaleProduct" class="block text-[11px] font-semibold text-slate-700 mb-1">Producto</label>
+            <select id="adminSaleProduct" required class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+          </div>
+          <div>
+            <label for="adminSaleQty" class="block text-[11px] font-semibold text-slate-700 mb-1">Cantidad</label>
+            <input id="adminSaleQty" type="number" min="1" step="1" required value="1" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label for="adminSaleBoleta" class="block text-[11px] font-semibold text-slate-700 mb-1">N° Boleta (opc.)</label>
+            <input id="adminSaleBoleta" type="text" placeholder="Ej. B001-099" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <div class="flex items-center gap-3 flex-wrap">
+            <input id="adminSaleResp" type="text" required placeholder="Responsable de esa venta" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <label id="adminSaleOfferWrap" class="hidden inline-flex items-center gap-1.5 text-xs font-semibold text-amber-900 cursor-pointer">
+              <input id="adminSaleIsOffer" type="checkbox" class="rounded text-amber-600 focus:ring-amber-500" />
+              <span>Fue Oferta GRATIS (S/ 0.00)</span>
+            </label>
+          </div>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-sm">
+            Registrar Venta Olvidada
+          </button>
+        </div>
+      </form>
+
       <div id="ventasList" class="space-y-3"></div>
     </div>
 
@@ -1367,6 +1413,26 @@
       if (prev && state.products.some(p => String(p.id) === prev)) sel.value = prev;
     }
 
+    function renderAdminSaleSelect() {
+      const sel = document.getElementById('adminSaleProduct');
+      if (!sel) return;
+      const prev = sel.value;
+      sel.innerHTML = state.products.map(p => `<option value="${p.id}">${p.cd} — ${p.nombre} (${formatMoney(p.precio)} | Stock: ${p.stock})</option>`).join('');
+      if (prev && state.products.some(p => String(p.id) === prev)) sel.value = prev;
+      updateAdminSaleOfferToggle();
+    }
+
+    function updateAdminSaleOfferToggle() {
+      const sel = document.getElementById('adminSaleProduct');
+      const wrap = document.getElementById('adminSaleOfferWrap');
+      const chk = document.getElementById('adminSaleIsOffer');
+      if (!sel || !wrap) return;
+      const p = state.products.find(item => item.id === Number(sel.value));
+      const eligible = p && (p.cd === 'O1' || p.cd === 'O2');
+      wrap.classList.toggle('hidden', !eligible);
+      if (!eligible && chk) chk.checked = false;
+    }
+
     function renderEntradasTable() {
       const tbody = document.getElementById('entradasTableBody');
       const q = document.getElementById('searchEntradas').value.trim().toLowerCase();
@@ -1589,6 +1655,7 @@
       renderCategoryFilter();
       renderProducts();
       renderEntradasSelect();
+      renderAdminSaleSelect();
       renderEntradasTable();
       renderVentas();
       renderAdminAudit();
@@ -2654,6 +2721,124 @@
       setTimeout(() => document.body.classList.remove('printing-monthly-report'), 500);
     });
     document.getElementById('tabBtnAdmin').addEventListener('click', () => { generateMonthlyReport(); });
+
+    const adminSaleDateEl = document.getElementById('adminSaleDate');
+    if (adminSaleDateEl && !adminSaleDateEl.value) {
+      const d = new Date();
+      adminSaleDateEl.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    document.getElementById('adminSaleProduct').addEventListener('change', updateAdminSaleOfferToggle);
+
+    document.getElementById('formAdminAddSale').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (state.session.role !== 'admin' && state.session.role !== 'superadmin') return;
+
+      const dateVal = document.getElementById('adminSaleDate').value;
+      const shiftVal = document.getElementById('adminSaleShift').value;
+      const prodId = Number(document.getElementById('adminSaleProduct').value);
+      const qty = parseInt(document.getElementById('adminSaleQty').value, 10) || 1;
+      const boleta = document.getElementById('adminSaleBoleta').value.trim().toUpperCase();
+      const resp = document.getElementById('adminSaleResp').value.trim().toUpperCase() || state.session.responsable;
+      const isOffer = document.getElementById('adminSaleIsOffer').checked;
+
+      const prod = state.products.find(p => p.id === prodId);
+      if (!prod || qty <= 0) return;
+      if (prod.stock < qty) {
+        showToast(`Stock insuficiente para ${prod.nombre} (Stock: ${prod.stock})`);
+        return;
+      }
+
+      const isFreeOffer = isOffer && (prod.cd === 'O1' || prod.cd === 'O2');
+      const total = isFreeOffer ? 0 : (prod.precio * qty);
+      const clienteStr = isFreeOffer
+        ? `OFERTA GRATIS (${prod.cd} x${qty})` + (boleta ? ` | Boleta: ${boleta}` : '')
+        : (boleta ? `Boleta: ${boleta}` : 'Regularización Admin');
+      const targetISO = `${dateVal}T12:00:00`;
+
+      if (supabaseClient) {
+        try {
+          const numT = shiftVal.includes('1') ? 1 : shiftVal.includes('2') ? 2 : 3;
+          const { data: tData, error: errT } = await supabaseClient
+            .from('turnos')
+            .insert({ numero_turno: numT, nombre_turno: shiftVal, responsable: resp, fecha_inicio: targetISO, fecha_cierre: targetISO, estado: 'cerrado', observaciones: 'Regularización Admin' })
+            .select('id')
+            .single();
+          if (errT) throw errT;
+
+          let saleId = null;
+          if (isFreeOffer) {
+            const { error: errUp } = await supabaseClient
+              .from('productos')
+              .update({ stock: prod.stock - qty, updated_at: new Date().toISOString() })
+              .eq('id', prod.id);
+            if (errUp) throw errUp;
+            const { data: insD, error: errIns } = await supabaseClient
+              .from('ventas')
+              .insert({ turno_id: tData.id, responsable: resp, cliente: clienteStr, subtotal: 0, total: 0, created_at: targetISO })
+              .select('id')
+              .single();
+            if (errIns) throw errIns;
+            saleId = insD.id;
+          } else {
+            const { data: rpcId, error: errR } = await supabaseClient.rpc('registrar_venta', {
+              p_responsable: resp,
+              p_turno_id: tData.id,
+              p_cliente: clienteStr,
+              p_items: [{ producto_id: prod.id, cantidad: qty }],
+              p_regalo_producto_id: null
+            });
+            if (errR) throw errR;
+            saleId = rpcId;
+            if (saleId) {
+              await supabaseClient.from('ventas').update({ created_at: targetISO }).eq('id', saleId);
+            }
+          }
+
+          if (dateVal === getOperationalDayKey()) {
+            const sc = getActiveShiftCounters(shiftVal);
+            if (!sc[prod.id]) sc[prod.id] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
+            if (isFreeOffer) sc[prod.id].oferta += qty;
+            else sc[prod.id].venta += qty;
+          }
+
+          document.getElementById('adminSaleQty').value = '1';
+          document.getElementById('adminSaleBoleta').value = '';
+          await syncFromSupabase();
+          showToast(`Venta olvidada registrada en Supabase (${shiftVal})`);
+          return;
+        } catch (err) {
+          showToast('Error Supabase al registrar venta olvidada: ' + err.message);
+          return;
+        }
+      }
+
+      // Modo Local
+      prod.stock -= qty;
+      if (dateVal === getOperationalDayKey()) {
+        const sc = getActiveShiftCounters(shiftVal);
+        if (!sc[prod.id]) sc[prod.id] = { inicial: prod.stock + qty, reposicion: 0, venta: 0, oferta: 0 };
+        if (isFreeOffer) sc[prod.id].oferta += qty;
+        else sc[prod.id].venta += qty;
+      }
+
+      state.ventas.unshift({
+        id: Date.now(),
+        fecha: new Date(targetISO).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+        turno: shiftVal,
+        responsable: resp,
+        cliente: clienteStr,
+        boleta,
+        items: isFreeOffer ? [] : [{ id: prod.id, cd: prod.cd, nombre: prod.nombre, cantidad: qty, precio: prod.precio }],
+        regalo: isFreeOffer ? `${prod.cd} - ${prod.nombre} (x${qty})` : null,
+        total
+      });
+
+      document.getElementById('adminSaleQty').value = '1';
+      document.getElementById('adminSaleBoleta').value = '';
+      saveState();
+      renderAll();
+      showToast(`Venta olvidada registrada (${shiftVal})`);
+    });
 
     document.getElementById('btnResetDemo').addEventListener('click', () => {
       const currentSession = state.session;
