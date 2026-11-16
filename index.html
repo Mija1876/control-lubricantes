@@ -1141,6 +1141,7 @@
         if (!errV && vts) {
           state.ventas = vts.map(v => ({
             id: v.id,
+            rawDate: v.created_at,
             fecha: new Date(v.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
             turno: v.turnos ? v.turnos.nombre_turno : '',
             responsable: v.responsable,
@@ -1912,8 +1913,14 @@
     }
 
     function getPendingShiftSales() {
+      const dayStartMs = new Date(getOperationalDayStartISO()).getTime();
       const ids = Array.isArray(state.shiftSaleIds) ? state.shiftSaleIds : [];
-      return state.ventas.filter(v => ids.includes(v.id) && !v.boleta);
+      return state.ventas.filter(v => {
+        if (v.boleta) return false;
+        if (ids.includes(v.id)) return true;
+        const vMs = v.rawDate ? new Date(v.rawDate).getTime() : 0;
+        return v.turno === state.session.turno && vMs >= dayStartMs;
+      });
     }
 
     document.getElementById('btnCloseShift').addEventListener('click', async () => {
@@ -1931,10 +1938,12 @@
       if (pendingOffers.length > 0) {
         const offerSummary = pendingOffers.map(o => o.cliente.replace('OFERTA GRATIS ', '')).join(', ');
         html += `
-          <div class="p-3 rounded-xl bg-amber-50 border border-amber-300 space-y-1.5">
-            <div class="text-xs font-bold text-amber-900">Todas las Ofertas GRATIS del turno (S/ 0.00) — En 1 sola boleta</div>
-            <div class="text-[11px] text-amber-800">${offerSummary}</div>
-            <input type="text" required data-boleta-group="offers" placeholder="Ingresa el N° de boleta para todas las ofertas" class="w-full px-3 py-2 rounded-lg border border-amber-300 bg-white text-sm uppercase focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          <div class="p-3 rounded-xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-bold text-amber-900">Ofertas GRATIS del turno (S/ 0.00)</div>
+              <div class="text-[11px] text-amber-800 truncate">${offerSummary}</div>
+            </div>
+            <input type="text" required data-boleta-group="offers" placeholder="N° Boleta ofertas" class="w-full sm:w-44 shrink-0 px-3 py-2 rounded-lg border border-amber-300 bg-white text-xs sm:text-sm uppercase focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </div>
         `;
       }
@@ -1942,12 +1951,12 @@
       pendingPaid.forEach(v => {
         const desc = (v.items || []).map(i => `${i.cd} ${i.nombre} x${i.cantidad}`).join(', ') || v.cliente;
         html += `
-          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-            <div class="flex items-center justify-between text-xs font-bold text-slate-900">
-              <span>${desc}</span>
-              <span class="text-indigo-600">${formatMoney(v.total)}</span>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-bold text-slate-900">${desc}</div>
+              <div class="text-[11px] font-semibold text-indigo-600">${formatMoney(v.total)}</div>
             </div>
-            <input type="text" required data-boleta-sale-id="${v.id}" placeholder="N° de boleta de esta venta" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input type="text" required data-boleta-sale-id="${v.id}" placeholder="N° Boleta" class="w-full sm:w-44 shrink-0 px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
         `;
       });
@@ -2152,6 +2161,7 @@
       state.shiftSaleIds.push(localSaleId);
       state.ventas.unshift({
         id: localSaleId,
+        rawDate: new Date().toISOString(),
         fecha: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
         turno: state.session.turno,
         responsable: state.session.responsable,
@@ -2435,6 +2445,7 @@
 
       state.auditoria.unshift({
         id: Date.now(),
+        rawDate: new Date().toISOString(),
         fecha: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
         productoNombre: entry.productoNombre,
         cantidadAnterior: oldQty,
@@ -2501,7 +2512,8 @@
         prod.stock = newAlmacen;
         state.auditoria.unshift({
           id: Date.now() + prodId,
-          fecha: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+          rawDate: new Date().toISOString(),
+        fecha: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
           productoNombre: `${prod.cd} — ${prod.nombre}`,
           cantidadAnterior: oldAlmacen,
           cantidadNueva: newAlmacen,
@@ -2908,6 +2920,7 @@
 
       state.ventas.unshift({
         id: Date.now(),
+        rawDate: new Date(targetISO).toISOString(),
         fecha: new Date(targetISO).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
         turno: shiftVal,
         responsable: resp,
