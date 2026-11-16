@@ -24,7 +24,7 @@
         print-color-adjust: exact !important;
       }
       body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
-      header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase, #modalFixEntry, #modalSellConfirm, #modalDeleteSale { display: none !important; }
+      header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase, #modalFixEntry, #modalSellConfirm, #modalDeleteSale, #modalPendingBoletas { display: none !important; }
       main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
       #viewCierre { display: block !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
       #printableSheet {
@@ -452,9 +452,16 @@
         <button id="btnResetNormalAdminPass" type="button" class="px-3.5 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold transition">
           Restablecer clave de Admin a admin123
         </button>
-        <button id="btnUnlockShiftsToday" type="button" class="ml-2 px-3.5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold transition">
-          Desbloquear turnos de hoy
-        </button>
+        <div class="pt-2 border-t border-slate-700 flex flex-wrap items-center gap-2">
+          <select id="selectUnlockShift" class="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-white text-xs focus:outline-none">
+            <option value="Turno Mañana (1)">Turno 1: Mañana</option>
+            <option value="Turno Tarde (2)">Turno 2: Tarde</option>
+            <option value="Turno Noche (3)">Turno 3: Noche</option>
+          </select>
+          <button id="btnUnlockShiftsToday" type="button" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold transition">
+            Reabrir Solo Este Turno
+          </button>
+        </div>
       </div>
     </div>
 
@@ -600,6 +607,11 @@
         </div>
       </div>
 
+      <div>
+        <label for="sellModalBoleta" class="block text-xs font-semibold text-slate-700 mb-1">N° de Boleta (opcional — puedes dejarlo para el cierre)</label>
+        <input id="sellModalBoleta" type="text" placeholder="Ej. B001-00125 (opcional)" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+      </div>
+
       <div class="grid grid-cols-2 gap-3 pt-2">
         <button id="btnCancelSellModal" type="button" class="py-2.5 px-4 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">
           No, cancelar
@@ -679,6 +691,32 @@
         <div class="flex items-center justify-end gap-2 pt-2">
           <button id="btnCancelFixModal" type="button" class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100">Cancelar</button>
           <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold">Guardar Corrección</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Boletas Pendientes antes de Cerrar Turno -->
+  <div id="modalPendingBoletas" class="hidden fixed inset-0 z-50 bg-slate-900/65 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 mb-1">Requisito para Cerrar Turno</span>
+          <h3 class="text-lg font-bold text-slate-900">Ingresa las Boletas Pendientes</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Antes de cerrar el turno, registra el N° de boleta de las ventas que quedaron sin boleta.</p>
+        </div>
+        <button id="btnClosePendingBoletas" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
+      </div>
+
+      <form id="formPendingBoletas" class="space-y-3 max-h-80 overflow-y-auto pr-1">
+        <div id="pendingBoletasList" class="space-y-3"></div>
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <button id="btnCancelPendingBoletas" type="button" class="py-2.5 px-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            Volver
+          </button>
+          <button type="submit" class="py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition">
+            Guardar Boletas y Cerrar
+          </button>
         </div>
       </form>
     </div>
@@ -811,7 +849,8 @@
       ventas: [],
       auditoria: [],
       closedShiftsByDay: {},
-      shiftCounters: {},
+      shiftSaleIds: [],
+      shiftCountersByShift: {},
       activeTab: 'catalogo',
       offerOnlyFilter: false
     };
@@ -822,6 +861,19 @@
         counters[p.id] = { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
       });
       return counters;
+    }
+
+    function getShiftKey(turnoName) {
+      return `${getOperationalDayKey()}::${turnoName || 'Turno Mañana (1)'}`;
+    }
+
+    function getActiveShiftCounters(turnoName = state.session.turno) {
+      if (!state.shiftCountersByShift) state.shiftCountersByShift = {};
+      const key = getShiftKey(turnoName);
+      if (!state.shiftCountersByShift[key]) {
+        state.shiftCountersByShift[key] = buildShiftCounters(state.products);
+      }
+      return state.shiftCountersByShift[key];
     }
 
     function cloneDefaults() {
@@ -835,7 +887,8 @@
         ventas: [],
         auditoria: [],
         closedShiftsByDay: {},
-        shiftCounters: buildShiftCounters(products),
+        shiftSaleIds: [],
+        shiftCountersByShift: {},
         activeTab: 'catalogo',
         offerOnlyFilter: false
       };
@@ -848,7 +901,7 @@
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed.products) && parsed.products.length > 0) {
             state = { ...cloneDefaults(), ...parsed };
-            if (!state.shiftCounters) state.shiftCounters = buildShiftCounters(state.products);
+            if (!state.shiftCountersByShift) state.shiftCountersByShift = {};
             if (!Array.isArray(state.auditoria)) state.auditoria = [];
             return;
           }
@@ -868,7 +921,8 @@
           ventas: state.ventas,
           auditoria: state.auditoria,
           closedShiftsByDay: state.closedShiftsByDay,
-          shiftCounters: state.shiftCounters
+          shiftSaleIds: state.shiftSaleIds,
+          shiftCountersByShift: state.shiftCountersByShift
         }));
       } catch (e) {}
     }
@@ -927,9 +981,8 @@
             esOferta: Boolean(p.es_oferta_gratis)
           }));
           state.products.forEach(p => {
-            if (!state.shiftCounters[p.id]) {
-              state.shiftCounters[p.id] = { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
-            }
+            const sc = getActiveShiftCounters();
+            if (!sc[p.id]) sc[p.id] = { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
           });
         }
 
@@ -965,6 +1018,7 @@
             turno: v.turnos ? v.turnos.nombre_turno : '',
             responsable: v.responsable,
             cliente: v.cliente,
+            boleta: (v.cliente && v.cliente.includes('Boleta:')) ? v.cliente.split('Boleta:').pop().trim() : '',
             items: (v.venta_detalle || []).map(d => ({
               id: d.producto_id,
               cd: d.productos ? d.productos.cd : '',
@@ -1296,7 +1350,8 @@
               <span class="text-xs font-bold text-indigo-600">Venta #${v.id}</span>
               <span class="text-xs text-slate-500 ml-2">${v.fecha}</span>
               <span class="text-xs font-semibold text-slate-700 ml-2">• ${v.turno || ''} (${v.responsable || ''})</span>
-              <span class="text-xs font-medium text-slate-700 ml-2">• Cliente: ${v.cliente}</span>
+              <span class="text-xs font-medium text-slate-700 ml-2">• ${v.cliente}</span>
+              ${v.boleta ? `<span class="ml-2 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-bold">Boleta: ${v.boleta}</span>` : `<span class="ml-2 px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 text-[11px] font-semibold">Sin boleta</span>`}
             </div>
             <div class="flex items-center gap-2">
               <span class="text-base font-extrabold text-slate-900">${formatMoney(v.total)}</span>
@@ -1318,7 +1373,7 @@
       const list = state.products.filter(p => !q || p.cd.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q));
 
       tbody.innerHTML = list.map(p => {
-        const c = state.shiftCounters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
+        const c = getActiveShiftCounters()[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
         return `
           <tr class="hover:bg-slate-50" data-admin-prod-id="${p.id}">
             <td class="py-2 px-3 font-mono text-xs font-bold text-slate-600">${p.cd}</td>
@@ -1396,7 +1451,7 @@
       let totalLub = 0, totalOf = 0, totalUnidVendidas = 0, totalOfertasRegaladas = 0;
 
       lubBody.innerHTML = lubs.map(p => {
-        const c = state.shiftCounters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
+        const c = getActiveShiftCounters()[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
         const imp = c.venta * p.precio;
         totalLub += imp;
         totalUnidVendidas += c.venta;
@@ -1423,7 +1478,7 @@
       `;
 
       ofBody.innerHTML = offs.map(p => {
-        const c = state.shiftCounters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
+        const c = getActiveShiftCounters()[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
         const imp = c.venta * p.precio;
         totalOf += imp;
         totalUnidVendidas += c.venta;
@@ -1557,6 +1612,7 @@
       }
 
       state.session = { loggedIn: true, role: 'usuario', responsable: resp, turno: selectedLoginShift, turnoId };
+      getActiveShiftCounters(selectedLoginShift);
       document.getElementById('entradaResponsable').value = resp;
       saveState();
       renderAll();
@@ -1612,7 +1668,9 @@
     document.getElementById('btnGoCierre').addEventListener('click', () => { renderCierreSheet(); setTab('cierre'); });
 
     document.getElementById('btnPrintSheet').addEventListener('click', () => window.print());
-    document.getElementById('btnCloseShift').addEventListener('click', async () => {
+    const modalPendingBoletas = document.getElementById('modalPendingBoletas');
+
+    async function executeCloseShift() {
       if (supabaseClient && state.session.turnoId) {
         try {
           const obs = document.getElementById('sheetObservaciones').value.trim();
@@ -1629,12 +1687,103 @@
         if (!arr.includes(state.session.turno)) arr.push(state.session.turno);
         state.closedShiftsByDay[dayKey] = arr;
       }
-      state.shiftCounters = buildShiftCounters(state.products);
+      state.shiftSaleIds = [];
       state.session.loggedIn = false;
       state.session.turnoId = null;
       saveState();
       renderAll();
       showToast('Turno cerrado y bloqueado por hoy. Abre el siguiente turno.');
+    }
+
+    function getPendingShiftSales() {
+      const ids = Array.isArray(state.shiftSaleIds) ? state.shiftSaleIds : [];
+      return state.ventas.filter(v => ids.includes(v.id) && !v.boleta);
+    }
+
+    document.getElementById('btnCloseShift').addEventListener('click', async () => {
+      const pending = getPendingShiftSales();
+      if (pending.length === 0) {
+        await executeCloseShift();
+        return;
+      }
+
+      const pendingOffers = pending.filter(v => Number(v.total) === 0);
+      const pendingPaid = pending.filter(v => Number(v.total) > 0);
+      const listEl = document.getElementById('pendingBoletasList');
+      let html = '';
+
+      if (pendingOffers.length > 0) {
+        const offerSummary = pendingOffers.map(o => o.cliente.replace('OFERTA GRATIS ', '')).join(', ');
+        html += `
+          <div class="p-3 rounded-xl bg-amber-50 border border-amber-300 space-y-1.5">
+            <div class="text-xs font-bold text-amber-900">Todas las Ofertas GRATIS del turno (S/ 0.00) — En 1 sola boleta</div>
+            <div class="text-[11px] text-amber-800">${offerSummary}</div>
+            <input type="text" required data-boleta-group="offers" placeholder="Ingresa el N° de boleta para todas las ofertas" class="w-full px-3 py-2 rounded-lg border border-amber-300 bg-white text-sm uppercase focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+        `;
+      }
+
+      pendingPaid.forEach(v => {
+        const desc = (v.items || []).map(i => `${i.cd} ${i.nombre} x${i.cantidad}`).join(', ') || v.cliente;
+        html += `
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-900">
+              <span>${desc}</span>
+              <span class="text-indigo-600">${formatMoney(v.total)}</span>
+            </div>
+            <input type="text" required data-boleta-sale-id="${v.id}" placeholder="N° de boleta de esta venta" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        `;
+      });
+
+      listEl.innerHTML = html;
+      modalPendingBoletas.classList.remove('hidden');
+    });
+
+    document.getElementById('btnClosePendingBoletas').addEventListener('click', () => modalPendingBoletas.classList.add('hidden'));
+    document.getElementById('btnCancelPendingBoletas').addEventListener('click', () => modalPendingBoletas.classList.add('hidden'));
+
+    document.getElementById('formPendingBoletas').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pending = getPendingShiftSales();
+      const offerInput = document.querySelector('#pendingBoletasList input[data-boleta-group="offers"]');
+      const offerBoleta = offerInput ? offerInput.value.trim().toUpperCase() : '';
+
+      try {
+        if (offerInput && offerBoleta) {
+          const pendingOffers = pending.filter(v => Number(v.total) === 0);
+          for (const v of pendingOffers) {
+            const newCliente = `${v.cliente} | Boleta: ${offerBoleta}`;
+            if (supabaseClient) {
+              const { error } = await supabaseClient.from('ventas').update({ cliente: newCliente }).eq('id', v.id);
+              if (error) throw error;
+            }
+            v.cliente = newCliente;
+            v.boleta = offerBoleta;
+          }
+        }
+
+        const paidInputs = document.querySelectorAll('#pendingBoletasList input[data-boleta-sale-id]');
+        for (const inp of paidInputs) {
+          const saleId = Number(inp.dataset.boletaSaleId);
+          const boletaVal = inp.value.trim().toUpperCase();
+          const sale = state.ventas.find(v => v.id === saleId);
+          if (sale && boletaVal) {
+            const newCliente = `Boleta: ${boletaVal}`;
+            if (supabaseClient) {
+              const { error } = await supabaseClient.from('ventas').update({ cliente: newCliente }).eq('id', saleId);
+              if (error) throw error;
+            }
+            sale.cliente = newCliente;
+            sale.boleta = boletaVal;
+          }
+        }
+
+        modalPendingBoletas.classList.add('hidden');
+        await executeCloseShift();
+      } catch (err) {
+        showToast('Error al guardar boletas: ' + err.message);
+      }
     });
 
     // Catalog & Cart Listeners
@@ -1685,6 +1834,7 @@
       const qtyEl = document.getElementById('sellModalQty');
       qtyEl.max = prod.stock;
       qtyEl.value = 1;
+      document.getElementById('sellModalBoleta').value = '';
 
       const isOfferEligible = (prod.cd === 'O1' || prod.cd === 'O2');
       document.getElementById('sellModalOfferChoice').classList.toggle('hidden', !isOfferEligible);
@@ -1717,37 +1867,52 @@
 
       const isFreeOffer = sellMode === 'offer' && (currentSellProd.cd === 'O1' || currentSellProd.cd === 'O2');
       const total = isFreeOffer ? 0 : (currentSellProd.precio * qty);
+      const boleta = document.getElementById('sellModalBoleta').value.trim().toUpperCase();
+      const clienteStr = isFreeOffer
+        ? `OFERTA GRATIS (${currentSellProd.cd} x${qty})` + (boleta ? ` | Boleta: ${boleta}` : '')
+        : (boleta ? `Boleta: ${boleta}` : 'Cliente general');
+
+      if (!Array.isArray(state.shiftSaleIds)) state.shiftSaleIds = [];
 
       if (supabaseClient) {
         try {
+          let newSaleId = null;
           if (isFreeOffer) {
             const { error: errUp } = await supabaseClient
               .from('productos')
               .update({ stock: currentSellProd.stock - qty, updated_at: new Date().toISOString() })
               .eq('id', currentSellProd.id);
             if (errUp) throw errUp;
-            await supabaseClient.from('ventas').insert({
-              turno_id: state.session.turnoId,
-              responsable: state.session.responsable,
-              cliente: `OFERTA GRATIS (${currentSellProd.cd} x${qty})`,
-              subtotal: 0,
-              total: 0
-            });
+            const { data: insData, error: errIns } = await supabaseClient
+              .from('ventas')
+              .insert({
+                turno_id: state.session.turnoId,
+                responsable: state.session.responsable,
+                cliente: clienteStr,
+                subtotal: 0,
+                total: 0
+              })
+              .select('id')
+              .single();
+            if (errIns) throw errIns;
+            newSaleId = insData.id;
           } else {
-            const { error } = await supabaseClient.rpc('registrar_venta', {
+            const { data: rpcId, error } = await supabaseClient.rpc('registrar_venta', {
               p_responsable: state.session.responsable,
               p_turno_id: state.session.turnoId,
-              p_cliente: 'Cliente general',
+              p_cliente: clienteStr,
               p_items: [{ producto_id: currentSellProd.id, cantidad: qty }],
               p_regalo_producto_id: null
             });
             if (error) throw error;
+            newSaleId = rpcId;
           }
-          if (!state.shiftCounters[currentSellProd.id]) {
-            state.shiftCounters[currentSellProd.id] = { inicial: currentSellProd.stock, reposicion: 0, venta: 0, oferta: 0 };
+          if (newSaleId) state.shiftSaleIds.push(Number(newSaleId));
+          if (!getActiveShiftCounters()[currentSellProd.id]) {
+            getActiveShiftCounters()[currentSellProd.id] = { inicial: currentSellProd.stock, reposicion: 0, venta: 0, oferta: 0 };
           }
-          if (isFreeOffer) state.shiftCounters[currentSellProd.id].oferta += qty;
-          else state.shiftCounters[currentSellProd.id].venta += qty;
+          if (isFreeOffer) getActiveShiftCounters()[currentSellProd.id].oferta += qty;
+          else getActiveShiftCounters()[currentSellProd.id].venta += qty;
 
           modalSell.classList.add('hidden');
           await syncFromSupabase();
@@ -1761,18 +1926,21 @@
 
       // Modo Local
       currentSellProd.stock -= qty;
-      if (!state.shiftCounters[currentSellProd.id]) {
-        state.shiftCounters[currentSellProd.id] = { inicial: currentSellProd.stock + qty, reposicion: 0, venta: 0, oferta: 0 };
+      if (!getActiveShiftCounters()[currentSellProd.id]) {
+        getActiveShiftCounters()[currentSellProd.id] = { inicial: currentSellProd.stock + qty, reposicion: 0, venta: 0, oferta: 0 };
       }
-      if (isFreeOffer) state.shiftCounters[currentSellProd.id].oferta += qty;
-      else state.shiftCounters[currentSellProd.id].venta += qty;
+      if (isFreeOffer) getActiveShiftCounters()[currentSellProd.id].oferta += qty;
+      else getActiveShiftCounters()[currentSellProd.id].venta += qty;
 
+      const localSaleId = Date.now();
+      state.shiftSaleIds.push(localSaleId);
       state.ventas.unshift({
-        id: state.ventas.length + 1,
+        id: localSaleId,
         fecha: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
         turno: state.session.turno,
         responsable: state.session.responsable,
-        cliente: isFreeOffer ? 'Oferta > S/ 200' : 'Cliente general',
+        cliente: clienteStr,
+        boleta,
         items: isFreeOffer ? [] : [{ id: currentSellProd.id, cd: currentSellProd.cd, nombre: currentSellProd.nombre, cantidad: qty, precio: currentSellProd.precio }],
         regalo: isFreeOffer ? `${currentSellProd.cd} - ${currentSellProd.nombre} (x${qty})` : null,
         total
@@ -1805,8 +1973,8 @@
             p_nota: nota || null
           });
           if (error) throw error;
-          if (!state.shiftCounters[prodId]) state.shiftCounters[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
-          state.shiftCounters[prodId].reposicion += cantidad;
+          if (!getActiveShiftCounters()[prodId]) getActiveShiftCounters()[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
+          getActiveShiftCounters()[prodId].reposicion += cantidad;
           document.getElementById('entradaCantidad').value = '';
           document.getElementById('entradaNota').value = '';
           await syncFromSupabase();
@@ -1820,8 +1988,8 @@
 
       const stockAntes = prod.stock;
       prod.stock += cantidad;
-      if (!state.shiftCounters[prod.id]) state.shiftCounters[prod.id] = { inicial: stockAntes, reposicion: 0, venta: 0, oferta: 0 };
-      state.shiftCounters[prod.id].reposicion += cantidad;
+      if (!getActiveShiftCounters()[prod.id]) getActiveShiftCounters()[prod.id] = { inicial: stockAntes, reposicion: 0, venta: 0, oferta: 0 };
+      getActiveShiftCounters()[prod.id].reposicion += cantidad;
 
       const now = new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
       state.entradas.unshift({
@@ -1895,8 +2063,8 @@
             p_nota: 'Ingreso rápido'
           });
           if (error) throw error;
-          if (!state.shiftCounters[prodId]) state.shiftCounters[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
-          state.shiftCounters[prodId].reposicion += cantidad;
+          if (!getActiveShiftCounters()[prodId]) getActiveShiftCounters()[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
+          getActiveShiftCounters()[prodId].reposicion += cantidad;
           e.target.reset();
           modal.classList.add('hidden');
           await syncFromSupabase();
@@ -1910,8 +2078,8 @@
 
       const stockAntes = prod.stock;
       prod.stock += cantidad;
-      if (!state.shiftCounters[prod.id]) state.shiftCounters[prod.id] = { inicial: stockAntes, reposicion: 0, venta: 0, oferta: 0 };
-      state.shiftCounters[prod.id].reposicion += cantidad;
+      if (!getActiveShiftCounters()[prod.id]) getActiveShiftCounters()[prod.id] = { inicial: stockAntes, reposicion: 0, venta: 0, oferta: 0 };
+      getActiveShiftCounters()[prod.id].reposicion += cantidad;
 
       const now = new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
       state.entradas.unshift({
@@ -1977,8 +2145,8 @@
               if (errUp) throw errUp;
             }
             prod.stock = newStock;
-            if (state.shiftCounters[prod.id]) {
-              state.shiftCounters[prod.id].reposicion = Math.max(0, state.shiftCounters[prod.id].reposicion - entry.cantidad);
+            if (getActiveShiftCounters()[prod.id]) {
+              getActiveShiftCounters()[prod.id].reposicion = Math.max(0, getActiveShiftCounters()[prod.id].reposicion - entry.cantidad);
             }
           }
           if (supabaseClient) {
@@ -2019,8 +2187,8 @@
           });
           if (error) throw error;
           const diff = newQty - entry.cantidad;
-          if (state.shiftCounters[entry.productoId]) {
-            state.shiftCounters[entry.productoId].reposicion = Math.max(0, state.shiftCounters[entry.productoId].reposicion + diff);
+          if (getActiveShiftCounters()[entry.productoId]) {
+            getActiveShiftCounters()[entry.productoId].reposicion = Math.max(0, getActiveShiftCounters()[entry.productoId].reposicion + diff);
           }
           modalFix.classList.add('hidden');
           document.getElementById('fixEntryReason').value = '';
@@ -2045,8 +2213,8 @@
       prod.stock += diff;
       entry.cantidad = newQty;
       entry.stockDespues = entry.stockAntes + newQty;
-      if (state.shiftCounters[prod.id]) {
-        state.shiftCounters[prod.id].reposicion = Math.max(0, state.shiftCounters[prod.id].reposicion + diff);
+      if (getActiveShiftCounters()[prod.id]) {
+        getActiveShiftCounters()[prod.id].reposicion = Math.max(0, getActiveShiftCounters()[prod.id].reposicion + diff);
       }
 
       state.auditoria.unshift({
@@ -2094,15 +2262,15 @@
     async function applyAdminStockRow(prodId, newInicial, newAlmacen) {
       const prod = state.products.find(p => p.id === prodId);
       if (!prod) return false;
-      if (!state.shiftCounters[prodId]) {
-        state.shiftCounters[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
+      if (!getActiveShiftCounters()[prodId]) {
+        getActiveShiftCounters()[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
       }
       const oldAlmacen = prod.stock;
-      const oldInicial = state.shiftCounters[prodId].inicial;
+      const oldInicial = getActiveShiftCounters()[prodId].inicial;
       let changed = false;
 
       if (!isNaN(newInicial) && newInicial >= 0 && newInicial !== oldInicial) {
-        state.shiftCounters[prodId].inicial = newInicial;
+        getActiveShiftCounters()[prodId].inicial = newInicial;
         changed = true;
       }
 
@@ -2173,12 +2341,26 @@
       }
     });
 
-    document.getElementById('btnUnlockShiftsToday').addEventListener('click', () => {
+    document.getElementById('btnUnlockShiftsToday').addEventListener('click', async () => {
+      const targetShift = document.getElementById('selectUnlockShift').value;
       const dayKey = getOperationalDayKey();
-      if (state.closedShiftsByDay) state.closedShiftsByDay[dayKey] = [];
+      if (state.closedShiftsByDay && Array.isArray(state.closedShiftsByDay[dayKey])) {
+        state.closedShiftsByDay[dayKey] = state.closedShiftsByDay[dayKey].filter(sh => sh !== targetShift);
+      }
+      if (supabaseClient) {
+        try {
+          const dayStart = getOperationalDayStartISO();
+          await supabaseClient
+            .from('turnos')
+            .update({ estado: 'abierto', fecha_cierre: null })
+            .eq('estado', 'cerrado')
+            .eq('nombre_turno', targetShift)
+            .gte('fecha_inicio', dayStart);
+        } catch (err) {}
+      }
       saveState();
       renderShiftButtons();
-      showToast('Turnos de hoy desbloqueados manualmente');
+      showToast(`${targetShift} reabierto correctamente`);
     });
 
     document.getElementById('btnResetNormalAdminPass').addEventListener('click', () => {
@@ -2223,8 +2405,8 @@
               if (error) throw error;
             }
             prod.stock = newStock;
-            if (state.shiftCounters[prod.id]) {
-              state.shiftCounters[prod.id].venta = Math.max(0, state.shiftCounters[prod.id].venta - item.cantidad);
+            if (getActiveShiftCounters()[prod.id]) {
+              getActiveShiftCounters()[prod.id].venta = Math.max(0, getActiveShiftCounters()[prod.id].venta - item.cantidad);
             }
           }
         }
@@ -2241,8 +2423,8 @@
                 await supabaseClient.from('productos').update({ stock: newStock, updated_at: new Date().toISOString() }).eq('id', prod.id);
               }
               prod.stock = newStock;
-              if (state.shiftCounters[prod.id]) {
-                state.shiftCounters[prod.id].oferta = Math.max(0, state.shiftCounters[prod.id].oferta - qty);
+              if (getActiveShiftCounters()[prod.id]) {
+                getActiveShiftCounters()[prod.id].oferta = Math.max(0, getActiveShiftCounters()[prod.id].oferta - qty);
               }
             }
           }
@@ -2281,7 +2463,7 @@
         }
         state.products.forEach(p => {
           p.stock = 0;
-          state.shiftCounters[p.id] = { inicial: 0, reposicion: 0, venta: 0, oferta: 0 };
+          getActiveShiftCounters()[p.id] = { inicial: 0, reposicion: 0, venta: 0, oferta: 0 };
         });
         saveState();
         renderAll();
