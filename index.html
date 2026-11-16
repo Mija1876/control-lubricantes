@@ -1187,11 +1187,20 @@
         // 1) Sincronizar turnos cerrados de hoy
         const { data: todayTurns, error: errT } = await supabaseClient
           .from('turnos')
-          .select('id, nombre_turno, estado')
+          .select('id, nombre_turno, estado, observaciones, fecha_inicio')
           .gte('fecha_inicio', dayStart);
         if (!errT && todayTurns) {
+          const dOp = getOperationalDayDate();
+          const twoPmTodayMs = new Date(dOp.getFullYear(), dOp.getMonth(), dOp.getDate(), 14, 0, 0, 0).getTime();
           const closedSet = new Set();
-          todayTurns.filter(t => t.estado === 'cerrado').forEach(t => closedSet.add(t.nombre_turno));
+          todayTurns.forEach(t => {
+            if (t.estado !== 'cerrado' || t.observaciones === 'Regularización Admin') return;
+            if (t.nombre_turno === 'Turno Noche (3)') {
+              const startMs = new Date(t.fecha_inicio).getTime();
+              if (startMs < twoPmTodayMs) return; // Era el Turno 3 de la noche anterior que cerró en la mañana
+            }
+            closedSet.add(t.nombre_turno);
+          });
           state.closedShiftsByDay[dayKey] = [...closedSet];
         }
 
@@ -1913,11 +1922,16 @@
         } catch (err) {}
       }
       if (state.session.role === 'usuario' && state.session.turno) {
-        const dayKey = getOperationalDayKey();
+        const nowHr = new Date().getHours();
+        let targetKey = getOperationalDayKey();
+        if (state.session.turno === 'Turno Noche (3)' && nowHr < 14) {
+          const prevD = new Date(getOperationalDayDate().getTime() - 24 * 60 * 60 * 1000);
+          targetKey = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, '0')}-${String(prevD.getDate()).padStart(2, '0')}`;
+        }
         if (!state.closedShiftsByDay) state.closedShiftsByDay = {};
-        const arr = state.closedShiftsByDay[dayKey] || [];
+        const arr = state.closedShiftsByDay[targetKey] || [];
         if (!arr.includes(state.session.turno)) arr.push(state.session.turno);
-        state.closedShiftsByDay[dayKey] = arr;
+        state.closedShiftsByDay[targetKey] = arr;
       }
       state.shiftSaleIds = [];
       state.session.loggedIn = false;
