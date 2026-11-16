@@ -977,11 +977,28 @@
       return `${getOperationalDayKey()}::${turnoName || 'Turno Mañana (1)'}`;
     }
 
+    function computeShiftFinal(c, fallbackStock) {
+      if (!c) return fallbackStock;
+      return Math.max(0, (c.inicial || 0) + (c.reposicion || 0) - (c.venta || 0) - (c.oferta || 0));
+    }
+
     function getActiveShiftCounters(turnoName = state.session.turno) {
       if (!state.shiftCountersByShift) state.shiftCountersByShift = {};
       const key = getShiftKey(turnoName);
       if (!state.shiftCountersByShift[key]) {
-        state.shiftCountersByShift[key] = buildShiftCounters(state.products);
+        let prevShift = null;
+        if (turnoName === 'Turno Tarde (2)') prevShift = 'Turno Mañana (1)';
+        else if (turnoName === 'Turno Noche (3)') prevShift = 'Turno Tarde (2)';
+
+        const prevKey = prevShift ? getShiftKey(prevShift) : null;
+        const prevCounters = (prevKey && state.shiftCountersByShift[prevKey]) ? state.shiftCountersByShift[prevKey] : null;
+
+        const counters = {};
+        state.products.forEach(p => {
+          const initVal = prevCounters ? computeShiftFinal(prevCounters[p.id], p.stock) : p.stock;
+          counters[p.id] = { inicial: initVal, reposicion: 0, venta: 0, oferta: 0 };
+        });
+        state.shiftCountersByShift[key] = counters;
       }
       return state.shiftCountersByShift[key];
     }
@@ -1161,17 +1178,83 @@
         }
 
         const dayStart = getOperationalDayStartISO();
-        const { data: closedT, error: errT } = await supabaseClient
+        const dayKey = getOperationalDayKey();
+
+        // 1) Sincronizar turnos cerrados de hoy
+        const { data: todayTurns, error: errT } = await supabaseClient
           .from('turnos')
-          .select('nombre_turno')
-          .eq('estado', 'cerrado')
+          .select('id, nombre_turno, estado')
           .gte('fecha_inicio', dayStart);
-        if (!errT && closedT) {
-          const dayKey = getOperationalDayKey();
-          const currentClosed = new Set(state.closedShiftsByDay[dayKey] || []);
-          closedT.forEach(t => currentClosed.add(t.nombre_turno));
-          state.closedShiftsByDay[dayKey] = [...currentClosed];
+        if (!errT && todayTurns) {
+          const closedSet = new Set();
+          todayTurns.filter(t => t.estado === 'cerrado').forEach(t => closedSet.add(t.nombre_turno));
+          state.closedShiftsByDay[dayKey] = [...closedSet];
         }
+
+        // 2) Reconstruir contadores exactos por turno de hoy desde Supabase (entradas + ventas)
+        const shiftsOrder = ['Turno Mañana (1)', 'Turno Tarde (2)', 'Turno Noche (3)'];
+        const statsByShift = {};
+        shiftsOrder.forEach(sh => { statsByShift[sh] = {}; });
+
+        const { data: dayEnts } = await supabaseClient
+          .from('entradas_stock')
+          .select('producto_id, cantidad, turnos(nombre_turno)')
+          .gte('created_at', dayStart);
+        (dayEnts || []).forEach(e => {
+          const sh = (e.turnos && e.turnos.nombre_turno) ? e.turnos.nombre_turno : 'Turno Mañana (1)';
+          if (!statsByShift[sh]) statsByShift[sh] = {};
+          if (!statsByShift[sh][e.producto_id]) statsByShift[sh][e.producto_id] = { rep: 0, ven: 0, of: 0 };
+          statsByShift[sh][e.producto_id].rep += Number(e.cantidad || 0);
+        });
+
+        const { data: dayVts } = await supabaseClient
+          .from('ventas')
+          .select('cliente, turnos(nombre_turno), venta_detalle(producto_id, cantidad)')
+          .gte('created_at', dayStart);
+        (dayVts || []).forEach(v => {
+          const sh = (v.turnos && v.turnos.nombre_turno) ? v.turnos.nombre_turno : 'Turno Mañana (1)';
+          if (!statsByShift[sh]) statsByShift[sh] = {};
+          if (v.cliente && v.cliente.startsWith('OFERTA GRATIS')) {
+            const m = v.cliente.match(/\((O\d+)\s*x(\d+)\)/i);
+            if (m) {
+              const pObj = state.products.find(p => p.cd === m[1].toUpperCase());
+              if (pObj) {
+                if (!statsByShift[sh][pObj.id]) statsByShift[sh][pObj.id] = { rep: 0, ven: 0, of: 0 };
+                statsByShift[sh][pObj.id].of += parseInt(m[2], 10) || 1;
+              }
+            }
+          }
+          (v.venta_detalle || []).forEach(d => {
+            if (!statsByShift[sh][d.producto_id]) statsByShift[sh][d.producto_id] = { rep: 0, ven: 0, of: 0 };
+            statsByShift[sh][d.producto_id].ven += Number(d.cantidad || 0);
+          });
+        });
+
+        // Calcular inicial encadenado desde el stock actual en BD hacia atrás
+        if (!state.shiftCountersByShift) state.shiftCountersByShift = {};
+        shiftsOrder.forEach(sh => {
+          state.shiftCountersByShift[`${dayKey}::${sh}`] = {};
+        });
+
+        state.products.forEach(p => {
+          let netToday = 0;
+          shiftsOrder.forEach(sh => {
+            const st = statsByShift[sh][p.id] || { rep: 0, ven: 0, of: 0 };
+            netToday += (st.rep - st.ven - st.of);
+          });
+          let running = Math.max(0, p.stock - netToday);
+          shiftsOrder.forEach(sh => {
+            const st = statsByShift[sh][p.id] || { rep: 0, ven: 0, of: 0 };
+            const initVal = running;
+            state.shiftCountersByShift[`${dayKey}::${sh}`][p.id] = {
+              inicial: initVal,
+              reposicion: st.rep,
+              venta: st.ven,
+              oferta: st.of
+            };
+            running = Math.max(0, initVal + st.rep - st.ven - st.of);
+          });
+        });
 
         saveState();
         renderAll();
@@ -1585,8 +1668,9 @@
         const imp = c.venta * p.precio;
         totalLub += imp;
         totalUnidVendidas += c.venta;
+        const finalStock = computeShiftFinal(c, p.stock);
         const zeroCls = c.inicial === 0 ? 'bg-rose-100/70' : '';
-        const finalCls = p.stock === 0 ? 'bg-rose-100/70' : '';
+        const finalCls = finalStock === 0 ? 'bg-rose-100/70' : '';
         const ventaCls = c.venta > 0 ? 'bg-teal-100 font-bold' : '';
         return `
           <tr class="text-center">
@@ -1596,7 +1680,7 @@
             <td class="border border-slate-400 py-1 px-2 ${zeroCls}">${c.inicial}</td>
             <td class="border border-slate-400 py-1 px-2">${c.reposicion}</td>
             <td class="border border-slate-400 py-1 px-2 ${ventaCls}">${c.venta}</td>
-            <td class="border border-slate-400 py-1 px-2 ${finalCls}">${p.stock}</td>
+            <td class="border border-slate-400 py-1 px-2 ${finalCls}">${finalStock}</td>
             <td class="border border-slate-400 py-1 px-2 text-right font-semibold">${imp > 0 ? formatMoney(imp) : 'S/ -'}</td>
           </tr>
         `;
@@ -1613,8 +1697,9 @@
         totalOf += imp;
         totalUnidVendidas += c.venta;
         totalOfertasRegaladas += c.oferta;
+        const finalStock = computeShiftFinal(c, p.stock);
         const zeroCls = c.inicial === 0 ? 'bg-rose-100/70' : '';
-        const finalCls = p.stock === 0 ? 'bg-rose-100/70' : '';
+        const finalCls = finalStock === 0 ? 'bg-rose-100/70' : '';
         const ventaCls = c.venta > 0 ? 'bg-teal-100 font-bold' : '';
         const ofertaCls = c.oferta > 0 ? 'bg-amber-200 font-bold text-amber-950' : '';
         return `
@@ -1626,7 +1711,7 @@
             <td class="border border-slate-400 py-1 px-2">${c.reposicion}</td>
             <td class="border border-slate-400 py-1 px-2 ${ventaCls}">${c.venta}</td>
             <td class="border border-slate-400 py-1 px-2 ${ofertaCls}">${c.oferta}</td>
-            <td class="border border-slate-400 py-1 px-2 ${finalCls}">${p.stock}</td>
+            <td class="border border-slate-400 py-1 px-2 ${finalCls}">${finalStock}</td>
             <td class="border border-slate-400 py-1 px-2 text-right font-semibold">${imp > 0 ? formatMoney(imp) : 'S/ -'}</td>
           </tr>
         `;
@@ -2852,6 +2937,19 @@
     loadState();
     renderAll();
     initSupabaseFromStorage();
+
+    setInterval(() => {
+      if (!supabaseClient) return;
+      const activeTag = document.activeElement ? document.activeElement.tagName : '';
+      const anyModalOpen = ['modalProduct', 'modalFixEntry', 'modalSellConfirm', 'modalDeleteSale', 'modalPendingBoletas', 'modalSupabase']
+        .some(id => !document.getElementById(id).classList.contains('hidden'));
+      if (anyModalOpen || activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+      syncFromSupabase();
+    }, 15000);
+
+    window.addEventListener('focus', () => {
+      if (supabaseClient) syncFromSupabase();
+    });
   </script>
 </body>
 </html>
