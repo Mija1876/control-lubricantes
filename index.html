@@ -58,13 +58,13 @@
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
-  <!-- Login Overlay: Usuario Normal (sin contraseña) y Administrador (con contraseña) -->
+  <!-- Login Overlay -->
   <div id="loginOverlay" class="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-5">
       <div>
         <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 mb-2">Control de Caja y Almacén</span>
         <h2 class="text-xl font-bold text-slate-900">Iniciar Sesión</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Elige si ingresas a un turno normal o como Administrador.</p>
+        <p class="text-xs text-slate-500 mt-0.5">Selecciona tu turno de trabajo o accede al panel administrativo.</p>
       </div>
 
       <!-- Role Selector -->
@@ -80,7 +80,7 @@
       <form id="formLogin" class="space-y-4">
         <div>
           <label for="loginResponsable" class="block text-xs font-semibold text-slate-700 mb-1">Nombre del responsable</label>
-          <input id="loginResponsable" type="text" required value="MIJAIL" placeholder="Ej. MIJAIL" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input id="loginResponsable" type="text" required value="" autocomplete="off" placeholder="Nombre y apellido" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
 
         <div id="shiftSelectorWrap">
@@ -102,8 +102,8 @@
         <!-- Password only for Admin -->
         <div id="adminPassWrap" class="hidden">
           <label for="loginAdminPass" class="block text-xs font-semibold text-slate-700 mb-1">Contraseña de Administrador</label>
-          <input id="loginAdminPass" type="password" placeholder="Ingresa la contraseña" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <p id="loginAdminError" class="hidden text-xs text-rose-600 font-medium mt-1">Contraseña incorrecta.</p>
+          <input id="loginAdminPass" type="password" placeholder="Ingresa tu contraseña" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <p id="loginAdminError" class="hidden text-xs text-rose-600 font-medium mt-1">Usuario o contraseña incorrectos.</p>
         </div>
 
         <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition shadow-sm">
@@ -123,7 +123,7 @@
           <span id="roleStatusBadge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">Usuario</span>
         </div>
         <p class="text-xs text-slate-500">
-          Activo: <strong id="headerUserBadge" class="text-indigo-700">MIJAIL — Turno Mañana (1)</strong>
+          Activo: <strong id="headerUserBadge" class="text-indigo-700">— Turno Mañana (1)</strong>
         </p>
       </div>
 
@@ -143,7 +143,7 @@
         <button id="btnSwitchShift" type="button" class="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
           Salir / Cambiar
         </button>
-        <button id="btnResetDemo" type="button" class="admin-only hidden inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
+        <button id="btnResetDemo" type="button" class="superadmin-only hidden inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
           Restablecer Lista
         </button>
       </div>
@@ -185,7 +185,7 @@
         <p id="kpiOfferCount" class="text-2xl font-bold text-amber-600 mt-1">2</p>
       </div>
       <div class="admin-only hidden bg-white rounded-xl border border-slate-200 p-3.5">
-        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Vendido (Admin)</p>
+        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Vendido</p>
         <p id="kpiTotalSalesAmount" class="text-2xl font-bold text-indigo-600 mt-1">S/ 0.00</p>
       </div>
     </div>
@@ -193,10 +193,10 @@
 
   <!-- Main Content -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-    <!-- TAB 1: PRODUCTOS Y VENTA (SIN CARRITO, CON CONFIRMACIÓN EN EL CENTRO) -->
+    <!-- TAB 1: PRODUCTOS Y VENTA -->
     <div id="viewCatalogo" class="space-y-4">
       <div class="bg-white rounded-xl border border-slate-200 p-3.5 flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
-        <input id="searchProduct" type="text" placeholder="Buscar por código (ej. A1, O3) o nombre..." class="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <input id="searchProduct" type="text" placeholder="Buscar por código (A1, O2) o nombre del producto..." class="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         <div class="flex items-center gap-2 flex-wrap">
           <select id="filterCategory" class="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <option value="all">Todas las categorías</option>
@@ -227,7 +227,7 @@
                   <th class="py-2.5 px-3 font-semibold text-right">Precio</th>
                   <th class="py-2.5 px-3 font-semibold text-center">Stock</th>
                   <th class="py-2.5 px-3 font-semibold text-center">Oferta</th>
-                  <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
+                  <th class="py-2.5 px-3 font-semibold text-right user-only-col">Acción</th>
                 </tr>
               </thead>
               <tbody id="productTableBody" class="divide-y divide-slate-100"></tbody>
@@ -238,7 +238,7 @@
         <div class="bg-white rounded-xl border border-amber-300 shadow-xs overflow-hidden">
           <div class="px-4 py-2.5 bg-amber-500 text-slate-950 text-xs font-bold uppercase tracking-wider flex items-center justify-between flex-wrap gap-2">
             <span>Productos O1 – O8 (Aguas, Gaseosas y Otros)</span>
-            <span class="text-[11px] font-semibold bg-white/80 px-2 py-0.5 rounded-full">Solo O1 y O2 pueden darse como oferta gratis (&gt; S/ 200)</span>
+            <span class="text-[11px] font-semibold bg-white/80 px-2 py-0.5 rounded-full">Cortesía disponible en O1 y O2 por compras mayores a S/ 200</span>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-sm">
@@ -250,7 +250,7 @@
                   <th class="py-2.5 px-3 font-semibold text-right">Precio</th>
                   <th class="py-2.5 px-3 font-semibold text-center">Stock</th>
                   <th class="py-2.5 px-3 font-semibold text-center">Oferta</th>
-                  <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
+                  <th class="py-2.5 px-3 font-semibold text-right user-only-col">Acción</th>
                 </tr>
               </thead>
               <tbody id="offerTableBody" class="divide-y divide-amber-100"></tbody>
@@ -260,12 +260,12 @@
       </div>
     </div>
 
-    <!-- TAB 2: ENTRADAS / REPOSICIÓN (SOLO ADMINISTRADOR) -->
+    <!-- TAB 2: ENTRADAS / REPOSICIÓN -->
     <div id="viewEntradas" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       <div class="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div>
           <h2 class="text-base font-bold text-slate-900">Registrar Entrada de Stock</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Repone unidades y guarda quién realizó la reposición.</p>
+          <p class="text-xs text-slate-500 mt-0.5">Ingresa la cantidad recibida para actualizar el stock disponible.</p>
         </div>
 
         <form id="formEntrada" class="space-y-3.5">
@@ -275,15 +275,15 @@
           </div>
           <div>
             <label for="entradaCantidad" class="block text-xs font-semibold text-slate-700 mb-1">Cantidad que ingresa</label>
-            <input id="entradaCantidad" type="number" min="1" step="1" required placeholder="Ej. 10" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="entradaCantidad" type="number" min="1" step="1" required placeholder="Cantidad" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
-            <label for="entradaResponsable" class="block text-xs font-semibold text-slate-700 mb-1">¿Quién lo repuso?</label>
-            <input id="entradaResponsable" type="text" required value="MIJAIL" placeholder="Nombre del responsable" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <label for="entradaResponsable" class="block text-xs font-semibold text-slate-700 mb-1">Responsable de reposición</label>
+            <input id="entradaResponsable" type="text" required value="" placeholder="Nombre del responsable" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
             <label for="entradaNota" class="block text-xs font-semibold text-slate-700 mb-1">Observación / Proveedor (opcional)</label>
-            <input id="entradaNota" type="text" placeholder="Ej. Reposición en turno" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="entradaNota" type="text" placeholder="Detalle o guía de remisión" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition shadow-sm">
             Guardar Entrada y Sumar Stock
@@ -295,7 +295,6 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 class="text-base font-bold text-slate-900">Historial de Entradas / Reposiciones</h2>
-            <p class="text-xs text-slate-500">Solo visible para Administrador. Puedes corregir cualquier cantidad registrada.</p>
           </div>
           <input id="searchEntradas" type="text" placeholder="Filtrar por producto o responsable..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
@@ -319,12 +318,12 @@
       </div>
     </div>
 
-    <!-- TAB 3: HISTORIAL DE VENTAS (SOLO ADMINISTRADOR) -->
+    <!-- TAB 3: HISTORIAL DE VENTAS -->
     <div id="viewVentas" class="hidden bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 class="text-base font-bold text-slate-900">Historial de Ventas Realizadas (Solo Admin)</h2>
-          <p class="text-xs text-slate-500">Incluye turno, responsable y producto de oferta gratis por compras mayores a S/ 200.00</p>
+          <h2 class="text-base font-bold text-slate-900">Historial de Ventas Realizadas</h2>
+          <p class="text-xs text-slate-500">Registro consolidado de comprobantes, ventas y cortesías por turno.</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <input id="searchVentas" type="text" placeholder="Buscar por N° boleta, producto, fecha..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -336,11 +335,12 @@
           </select>
         </div>
       </div>
-      <!-- Formulario Admin: Registrar venta olvidada de cualquier día y turno -->
+
+      <!-- Formulario Admin: Registrar venta olvidada -->
       <form id="formAdminAddSale" class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="text-sm font-bold text-indigo-950">+ Registrar Venta Olvidada (Regularización Admin)</h3>
-          <span class="text-[11px] font-semibold text-indigo-700">Descuenta stock y suma al reporte del mes elegido</span>
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <h3 class="text-sm font-bold text-indigo-950">+ Registrar Venta Olvidada</h3>
+          <span class="text-[11px] font-semibold text-indigo-700">Regularización de operaciones de fechas o turnos anteriores</span>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
           <div>
@@ -365,15 +365,15 @@
           </div>
           <div>
             <label for="adminSaleBoleta" class="block text-[11px] font-semibold text-slate-700 mb-1">N° Boleta (opc.)</label>
-            <input id="adminSaleBoleta" type="text" placeholder="Ej. B001-099" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="adminSaleBoleta" type="text" placeholder="Serie - Número" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div class="flex items-center gap-3 flex-wrap">
-            <input id="adminSaleResp" type="text" required placeholder="Responsable de esa venta" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="adminSaleResp" type="text" required placeholder="Responsable de la operación" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             <label id="adminSaleOfferWrap" class="hidden inline-flex items-center gap-1.5 text-xs font-semibold text-amber-900 cursor-pointer">
               <input id="adminSaleIsOffer" type="checkbox" class="rounded text-amber-600 focus:ring-amber-500" />
-              <span>Fue Oferta GRATIS (S/ 0.00)</span>
+              <span>Entregado como Oferta GRATIS (S/ 0.00)</span>
             </label>
           </div>
           <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-sm">
@@ -389,7 +389,7 @@
           <span id="selectedSalesCount">0 venta(s) seleccionada(s)</span>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
-          <input id="bulkBoletaInput" type="text" placeholder="N° de Boleta (ej. B001-150)" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-amber-400" />
+          <input id="bulkBoletaInput" type="text" placeholder="N° de Boleta" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-amber-400" />
           <button id="btnAssignBulkBoleta" type="button" class="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold transition">
             Asignar Boleta a Seleccionadas
           </button>
@@ -399,7 +399,7 @@
       <div id="ventasList" class="space-y-3"></div>
     </div>
 
-    <!-- TAB 4: AUDITORÍA Y RESUMEN ADMIN (SOLO ADMINISTRADOR) -->
+    <!-- TAB 4: AUDITORÍA Y RESUMEN ADMIN -->
     <div id="viewAdmin" class="hidden space-y-6">
       <!-- Ventas por turno -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -421,12 +421,12 @@
         </div>
       </div>
 
-      <!-- Reporte Mensual de Ventas (Fin de Mes) -->
+      <!-- Reporte Mensual de Ventas -->
       <div id="monthlyReportCard" class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
           <div>
-            <h2 class="text-base font-bold text-slate-900">Reporte Mensual de Ventas (Fin de Mes)</h2>
-            <p class="text-xs text-slate-500">Consulta todas las ventas, unidades y ofertas regaladas del mes seleccionado.</p>
+            <h2 class="text-base font-bold text-slate-900">Reporte Mensual de Ventas</h2>
+            <p class="text-xs text-slate-500">Consolidado de ventas, unidades despachadas y cortesías por periodo.</p>
           </div>
           <div class="flex items-center gap-2 flex-wrap">
             <input id="adminReportMonth" type="month" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -485,7 +485,6 @@
       <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div>
           <h2 class="text-base font-bold text-slate-900">Registro de Cambios y Correcciones en Entradas</h2>
-          <p class="text-xs text-slate-500">Cada vez que un usuario normal o administrador corrige una cantidad (ej. de 84 a 80), queda auditado aquí.</p>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-sm">
@@ -510,7 +509,6 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 class="text-base font-bold text-slate-900">Modificar Stock Inicial (Turno y Todo el Almacén)</h2>
-            <p class="text-xs text-slate-500">Ajusta el stock inicial del turno (para la hoja de cierre) o el stock real en almacén (se guarda en Supabase).</p>
           </div>
           <div class="flex items-center gap-2 flex-wrap">
             <input id="searchAdminStock" type="text" placeholder="Buscar código o producto..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -542,7 +540,6 @@
       <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm max-w-lg space-y-3">
         <div>
           <h2 class="text-base font-bold text-slate-900">Perfil de Administrador — Cambiar Contraseña</h2>
-          <p class="text-xs text-slate-500">Actualiza la clave de acceso del Administrador sin editar el código.</p>
         </div>
         <form id="formChangeAdminPass" class="space-y-3">
           <div>
@@ -565,12 +562,11 @@
         </form>
       </div>
 
-      <!-- Exclusivo Super Admin (oculto para otros admins y usuarios) -->
+      <!-- Exclusivo Super Admin -->
       <div id="superAdminPanel" class="superadmin-only hidden bg-slate-900 text-white rounded-xl p-5 shadow-sm max-w-lg space-y-3">
         <div>
           <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-400 text-slate-950 mb-1">Acceso Maestro</span>
           <h2 class="text-base font-bold">Control de Contraseña de Administradores</h2>
-          <p class="text-xs text-slate-300">Visualiza o restablece la clave actual del Administrador estándar.</p>
         </div>
         <div class="rounded-lg bg-slate-800 border border-slate-700 px-3.5 py-2.5 flex items-center justify-between text-xs">
           <span class="text-slate-300">Contraseña actual de Admin:</span>
@@ -597,7 +593,6 @@
       <div class="no-print bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-bold text-slate-900">Vista Previa de Hoja de Cierre (Formato Excel / Impresión)</h2>
-          <p class="text-xs text-slate-500">Se calcula automáticamente con el stock inicial, reposiciones, ventas y ofertas regaladas del turno actual.</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <button id="btnPrintSheet" type="button" class="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition">
@@ -675,7 +670,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
           <div class="flex-1">
             <label for="sheetObservaciones" class="block text-xs font-bold uppercase mb-1">Observaciones:</label>
-            <textarea id="sheetObservaciones" rows="2" placeholder="Anota cualquier novedad del turno..." class="w-full border border-slate-400 rounded-md p-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
+            <textarea id="sheetObservaciones" rows="2" placeholder="Observaciones del turno..." class="w-full border border-slate-400 rounded-md p-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
           </div>
           <div class="space-y-3 text-right">
             <div class="inline-flex items-center gap-3 text-xs font-extrabold">
@@ -691,13 +686,13 @@
     </div>
   </main>
 
-  <!-- Modal: Confirmar Venta / Oferta en el Centro -->
+  <!-- Modal: Confirmar Venta / Oferta -->
   <div id="modalSellConfirm" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-start justify-between gap-2">
         <div>
           <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 mb-1">Confirmar Operación</span>
-          <h3 id="sellModalTitle" class="text-lg font-bold text-slate-900">¿Vender este producto?</h3>
+          <h3 id="sellModalTitle" class="text-lg font-bold text-slate-900">¿Registrar salida de este producto?</h3>
         </div>
         <button id="btnCloseSellModal" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
       </div>
@@ -710,15 +705,14 @@
         </div>
       </div>
 
-      <!-- Solo visible para O1 (Agua Mineral) y O2 (Gaseosa) -->
       <div id="sellModalOfferChoice" class="hidden space-y-2">
-        <span class="block text-xs font-semibold text-slate-700">¿Cómo sale este producto?</span>
+        <span class="block text-xs font-semibold text-slate-700">Tipo de salida</span>
         <div class="grid grid-cols-2 gap-2">
           <button id="btnModeSale" type="button" class="py-2.5 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-900 text-xs font-bold text-center transition">
-            Se está vendiendo<br><span class="font-normal text-indigo-700">Cobrar normal</span>
+            Venta Normal<br><span class="font-normal text-indigo-700">Cobrar precio regular</span>
           </button>
           <button id="btnModeFreeOffer" type="button" class="py-2.5 px-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-bold text-center hover:bg-amber-100 transition">
-            Es Oferta GRATIS<br><span class="font-normal text-amber-700">S/ 0.00 (&gt; S/ 200)</span>
+            Oferta GRATIS<br><span class="font-normal text-amber-700">S/ 0.00 (&gt; S/ 200)</span>
           </button>
         </div>
       </div>
@@ -735,22 +729,22 @@
       </div>
 
       <div>
-        <label for="sellModalBoleta" class="block text-xs font-semibold text-slate-700 mb-1">N° de Boleta (opcional — puedes dejarlo para el cierre)</label>
-        <input id="sellModalBoleta" type="text" placeholder="Ej. B001-00125 (opcional)" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <label for="sellModalBoleta" class="block text-xs font-semibold text-slate-700 mb-1">N° de Boleta (opcional ahora, requerido antes del cierre)</label>
+        <input id="sellModalBoleta" type="text" placeholder="Serie - Número" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
       </div>
 
       <div class="grid grid-cols-2 gap-3 pt-2">
         <button id="btnCancelSellModal" type="button" class="py-2.5 px-4 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">
-          No, cancelar
+          Cancelar
         </button>
         <button id="btnConfirmSellModal" type="button" class="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition shadow-sm">
-          Sí, confirmar
+          Confirmar
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Agregar Stock a Producto Existente -->
+  <!-- Modal: Agregar Stock -->
   <div id="modalProduct" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
       <div class="flex items-center justify-between">
@@ -777,11 +771,11 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label for="modalProdQty" class="block text-xs font-semibold text-slate-700 mb-1">Cantidad a agregar</label>
-            <input id="modalProdQty" type="number" min="1" step="1" required placeholder="Ej. 5" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="modalProdQty" type="number" min="1" step="1" required placeholder="Cantidad" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
-            <label for="modalProdResp" class="block text-xs font-semibold text-slate-700 mb-1">¿Quién lo repone?</label>
-            <input id="modalProdResp" type="text" required value="MIJAIL" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <label for="modalProdResp" class="block text-xs font-semibold text-slate-700 mb-1">Responsable</label>
+            <input id="modalProdResp" type="text" required value="" placeholder="Nombre" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
         </div>
         <div class="flex items-center justify-end gap-2 pt-2">
@@ -792,14 +786,14 @@
     </div>
   </div>
 
-  <!-- Modal: Corregir Entrada (Usuario Normal y Admin; el cambio queda auditado para Admin) -->
+  <!-- Modal: Corregir Entrada -->
   <div id="modalFixEntry" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
       <div class="flex items-center justify-between">
         <h3 class="text-lg font-bold text-slate-900">Corregir Cantidad de Entrada</h3>
         <button id="btnCloseFixModal" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
       </div>
-      <p class="text-xs text-slate-500">Si ingresaste una cantidad por error (ej. pusiste 84 y era 80), corrígela aquí. El ajuste se reflejará en el stock y quedará registrado para el Administrador.</p>
+      <p class="text-xs text-slate-500">Ingresa la cantidad correcta para actualizar el inventario.</p>
       <form id="formFixEntry" class="space-y-3.5">
         <div>
           <label for="fixEntrySelect" class="block text-xs font-semibold text-slate-700 mb-1">Entrada a corregir</label>
@@ -808,11 +802,11 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label for="fixEntryNewQty" class="block text-xs font-semibold text-slate-700 mb-1">Cantidad correcta</label>
-            <input id="fixEntryNewQty" type="number" min="1" step="1" required placeholder="Ej. 80" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="fixEntryNewQty" type="number" min="1" step="1" required placeholder="Cantidad" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
             <label for="fixEntryReason" class="block text-xs font-semibold text-slate-700 mb-1">Motivo</label>
-            <input id="fixEntryReason" type="text" required placeholder="Ej. Error de conteo" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="fixEntryReason" type="text" required placeholder="Motivo del ajuste" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
         </div>
         <div class="flex items-center justify-end gap-2 pt-2">
@@ -830,7 +824,7 @@
         <div>
           <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 mb-1">Requisito para Cerrar Turno</span>
           <h3 class="text-lg font-bold text-slate-900">Ingresa las Boletas Pendientes</h3>
-          <p class="text-xs text-slate-500 mt-0.5">Antes de cerrar el turno, registra el N° de boleta de las ventas que quedaron sin boleta.</p>
+          <p class="text-xs text-slate-500 mt-0.5">Completa los números de comprobante pendientes para finalizar el cierre.</p>
         </div>
         <button id="btnClosePendingBoletas" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
       </div>
@@ -855,15 +849,15 @@
       <div class="flex items-start justify-between gap-2">
         <div>
           <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-800 mb-1">Super Admin</span>
-          <h3 class="text-lg font-bold text-slate-900">Poner / Modificar N° de Boleta</h3>
+          <h3 class="text-lg font-bold text-slate-900">Asignar / Modificar N° de Boleta</h3>
         </div>
         <button id="btnCloseEditBoleta" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
       </div>
       <form id="formEditBoleta" class="space-y-3">
         <p id="editBoletaInfo" class="text-xs text-slate-600"></p>
         <div>
-          <label for="editBoletaInput" class="block text-xs font-semibold text-slate-700 mb-1">N° de Boleta (deja vacío para quitar)</label>
-          <input id="editBoletaInput" type="text" placeholder="Ej. B001-00150" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          <label for="editBoletaInput" class="block text-xs font-semibold text-slate-700 mb-1">N° de Boleta</label>
+          <input id="editBoletaInput" type="text" placeholder="Serie - Número" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-amber-500" />
         </div>
         <div class="grid grid-cols-2 gap-3 pt-1">
           <button id="btnCancelEditBoleta" type="button" class="py-2 px-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100">Cancelar</button>
@@ -879,17 +873,17 @@
       <div class="flex items-start justify-between gap-2">
         <div>
           <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-100 text-rose-800 mb-1">Acceso Maestro</span>
-          <h3 class="text-lg font-bold text-slate-900">¿Eliminar esta venta?</h3>
+          <h3 class="text-lg font-bold text-slate-900">¿Eliminar este registro?</h3>
         </div>
         <button id="btnCloseDeleteSale" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
       </div>
       <p id="deleteSaleInfo" class="text-xs text-slate-600"></p>
       <div class="grid grid-cols-2 gap-3 pt-1">
         <button id="btnCancelDeleteSale" type="button" class="py-2 px-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-          No, cancelar
+          Cancelar
         </button>
         <button id="btnConfirmDeleteSale" type="button" class="py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold">
-          Sí, eliminar
+          Eliminar
         </button>
       </div>
     </div>
@@ -899,11 +893,11 @@
   <div id="modalSupabase" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-lg font-bold text-slate-900">Conectar Base de Datos Supabase</h3>
+        <h3 class="text-lg font-bold text-slate-900">Configuración de Base de Datos</h3>
         <button id="btnCloseSupabase" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
       </div>
       <p class="text-xs text-slate-500">
-        Tus credenciales ya están preconfiguradas. Si cambias de proyecto, actualiza aquí la URL (sin <code>/rest/v1/</code>) y la clave pública.
+        Configura la URL del proyecto y la clave pública para la sincronización en tiempo real.
       </p>
       <form id="formSupabase" class="space-y-3.5">
         <div>
@@ -937,6 +931,7 @@
     const DEFAULT_SB_KEY = 'sb_publishable__CO5RkgQsqYE-_OWm5_pLg_4pBhW8en';
     const SUPER_ADMIN_USER = 'ADMIN';
     const SUPER_ADMIN_PASS = '135760';
+    const STANDARD_ADMIN_USER = 'LUIS';
     const ADMIN_PASS_DEFAULT = 'admin123';
     const ADMIN_PASS_KEY = 'tienda_admin_pass_v1';
 
@@ -992,7 +987,7 @@
     let loginRoleMode = 'usuario';
 
     let state = {
-      session: { loggedIn: false, role: 'usuario', responsable: 'MIJAIL', turno: 'Turno Mañana (1)', turnoId: null },
+      session: { loggedIn: false, role: 'usuario', responsable: '', turno: 'Turno Mañana (1)', turnoId: null },
       products: [],
       cart: {},
       selectedFreeOfferId: null,
@@ -1047,7 +1042,7 @@
     function cloneDefaults() {
       const products = JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
       return {
-        session: { loggedIn: false, role: 'usuario', responsable: 'MIJAIL', turno: 'Turno Mañana (1)', turnoId: null },
+        session: { loggedIn: false, role: 'usuario', responsable: '', turno: 'Turno Mañana (1)', turnoId: null },
         products,
         cart: {},
         selectedFreeOfferId: null,
@@ -1222,7 +1217,6 @@
         const dayStart = getOperationalDayStartISO();
         const dayKey = getOperationalDayKey();
 
-        // 1) Sincronizar turnos cerrados de hoy
         const { data: todayTurns, error: errT } = await supabaseClient
           .from('turnos')
           .select('id, nombre_turno, estado, observaciones, fecha_inicio')
@@ -1235,14 +1229,13 @@
             if (t.estado !== 'cerrado' || t.observaciones === 'Regularización Admin') return;
             if (t.nombre_turno === 'Turno Noche (3)') {
               const startMs = new Date(t.fecha_inicio).getTime();
-              if (startMs < twoPmTodayMs) return; // Era el Turno 3 de la noche anterior que cerró en la mañana
+              if (startMs < twoPmTodayMs) return;
             }
             closedSet.add(t.nombre_turno);
           });
           state.closedShiftsByDay[dayKey] = [...closedSet];
         }
 
-        // 2) Reconstruir contadores exactos por turno de hoy desde Supabase (entradas + ventas)
         const shiftsOrder = ['Turno Mañana (1)', 'Turno Tarde (2)', 'Turno Noche (3)'];
         const statsByShift = {};
         shiftsOrder.forEach(sh => { statsByShift[sh] = {}; });
@@ -1281,7 +1274,6 @@
           });
         });
 
-        // Calcular inicial encadenado desde el stock actual en BD hacia atrás
         if (!state.shiftCountersByShift) state.shiftCountersByShift = {};
         shiftsOrder.forEach(sh => {
           state.shiftCountersByShift[`${dayKey}::${sh}`] = {};
@@ -1327,19 +1319,6 @@
       toastTimer = setTimeout(() => el.classList.add('hidden'), 3500);
     }
 
-    function getCartSubtotal() {
-      let total = 0;
-      for (const [idStr, qty] of Object.entries(state.cart)) {
-        const prod = state.products.find(p => p.id === Number(idStr));
-        if (prod && qty > 0) total += prod.precio * qty;
-      }
-      return total;
-    }
-
-    function getAvailableOfferProducts() {
-      return state.products.filter(p => (p.cd === 'O1' || p.cd === 'O2') && p.stock > 0);
-    }
-
     function setTab(tab) {
       const isAdmin = state.session.role === 'admin' || state.session.role === 'superadmin';
       if (!isAdmin && (tab === 'entradas' || tab === 'ventas' || tab === 'admin')) {
@@ -1372,7 +1351,6 @@
     }
 
     function getOperationalDayDate() {
-      // Jornada diaria inicia a las 6:00 AM y termina a las 6:00 AM del día siguiente
       return new Date(Date.now() - 6 * 60 * 60 * 1000);
     }
 
@@ -1424,15 +1402,22 @@
     function renderSession() {
       const overlay = document.getElementById('loginOverlay');
       overlay.classList.toggle('hidden', state.session.loggedIn);
+      if (!state.session.loggedIn) {
+        const loginInput = document.getElementById('loginResponsable');
+        if (loginInput) loginInput.value = '';
+      }
       renderShiftButtons();
       const isAdmin = state.session.role === 'admin' || state.session.role === 'superadmin';
-
       const isSuperAdmin = state.session.role === 'superadmin';
+
       document.querySelectorAll('.admin-only').forEach(el => {
         el.classList.toggle('hidden', !isAdmin);
       });
       document.querySelectorAll('.superadmin-only').forEach(el => {
         el.classList.toggle('hidden', !isSuperAdmin);
+      });
+      document.querySelectorAll('.user-only-col').forEach(el => {
+        el.classList.toggle('hidden', isAdmin);
       });
       if (isSuperAdmin) {
         const vp = document.getElementById('superAdminViewPass');
@@ -1446,11 +1431,11 @@
         : 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200';
 
       document.getElementById('headerUserBadge').textContent = isAdmin
-        ? `${state.session.responsable} — Modo Administrador`
+        ? `${state.session.responsable} — Panel Administrador`
         : `${state.session.responsable} — ${state.session.turno}`;
 
       const respInput = document.getElementById('entradaResponsable');
-      if (respInput && !respInput.value.trim()) {
+      if (respInput && !respInput.value.trim() && state.session.responsable) {
         respInput.value = state.session.responsable;
       }
 
@@ -1486,11 +1471,19 @@
 
     function buildProductRow(p) {
       const remaining = Math.max(0, p.stock);
+      const isAdmin = state.session.role === 'admin' || state.session.role === 'superadmin';
       const stockBadge = p.stock === 0
         ? '<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">0</span>'
         : p.stock <= 3
           ? `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">${p.stock}</span>`
           : `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">${p.stock}</span>`;
+
+      const actionCell = isAdmin ? '' : `
+          <td class="py-2.5 px-3 text-right whitespace-nowrap">
+            <button data-action="add-cart" data-id="${p.id}" type="button" ${remaining === 0 ? 'disabled' : ''} class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold transition">
+              ${remaining === 0 ? 'Sin stock' : 'Vender'}
+            </button>
+          </td>`;
 
       return `
         <tr class="hover:bg-slate-50 ${p.esOferta ? 'bg-amber-50/40' : ''}">
@@ -1504,11 +1497,7 @@
               ? '<span class="inline-block px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-100 border border-amber-300 text-amber-800">Oferta</span>'
               : '<span class="text-xs text-slate-300">—</span>'}
           </td>
-          <td class="py-2.5 px-3 text-right whitespace-nowrap">
-            <button data-action="add-cart" data-id="${p.id}" type="button" ${remaining === 0 ? 'disabled' : ''} class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-semibold transition">
-              ${remaining === 0 ? 'Sin stock' : 'Vender'}
-            </button>
-          </td>
+          ${actionCell}
         </tr>
       `;
     }
@@ -1519,6 +1508,8 @@
       const query = document.getElementById('searchProduct').value.trim().toLowerCase();
       const category = document.getElementById('filterCategory').value;
       const stockFilter = document.getElementById('filterStock').value;
+      const isAdmin = state.session.role === 'admin' || state.session.role === 'superadmin';
+      const colSpanCount = isAdmin ? 6 : 7;
 
       const filtered = state.products.filter(p => {
         const matchesQuery = !query || p.nombre.toLowerCase().includes(query) || p.cd.toLowerCase().includes(query);
@@ -1532,11 +1523,11 @@
       const offerList = filtered.filter(p => /^O\d+$/i.test(p.cd) || p.categoria === 'Ofertas');
 
       tbodyMain.innerHTML = mainList.length === 0
-        ? `<tr><td colspan="7" class="py-6 text-center text-slate-400 text-sm">No hay lubricantes/aditivos con esos filtros.</td></tr>`
+        ? `<tr><td colspan="${colSpanCount}" class="py-6 text-center text-slate-400 text-sm">No se encontraron productos con los filtros seleccionados.</td></tr>`
         : mainList.map(buildProductRow).join('');
 
       tbodyOffers.innerHTML = offerList.length === 0
-        ? `<tr><td colspan="7" class="py-6 text-center text-slate-400 text-sm">No hay productos O1–O8 con esos filtros.</td></tr>`
+        ? `<tr><td colspan="${colSpanCount}" class="py-6 text-center text-slate-400 text-sm">No se encontraron bebidas ni ofertas con los filtros seleccionados.</td></tr>`
         : offerList.map(buildProductRow).join('');
     }
 
@@ -1575,7 +1566,7 @@
       );
 
       if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 text-sm">Aún no hay entradas registradas.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 text-sm">No hay entradas registradas.</td></tr>`;
         return;
       }
 
@@ -1597,6 +1588,38 @@
       `).join('');
     }
 
+    function parseFreeOfferItemsFromSale(v) {
+      const offers = [];
+      if (v.cliente && v.cliente.startsWith('OFERTA GRATIS')) {
+        const m = v.cliente.match(/\((O\d+)\s*x(\d+)\)/i);
+        if (m) {
+          const cd = m[1].toUpperCase();
+          const qty = parseInt(m[2], 10) || 1;
+          const prodObj = state.products.find(p => p.cd === cd);
+          offers.push({
+            cd,
+            nombre: prodObj ? prodObj.nombre : cd,
+            cantidad: qty
+          });
+        }
+      }
+      if (v.regalo) {
+        const parts = v.regalo.split(' - ');
+        const cd = (parts[0] || '').trim().toUpperCase();
+        const rest = parts.slice(1).join(' - ').trim();
+        const qtyMatch = rest.match(/\(x(\d+)\)/i);
+        const qty = qtyMatch ? (parseInt(qtyMatch[1], 10) || 1) : 1;
+        const cleanName = rest.replace(/\(x\d+\)/i, '').trim();
+        const prodObj = state.products.find(p => p.cd === cd);
+        offers.push({
+          cd: cd || 'O1',
+          nombre: prodObj ? prodObj.nombre : (cleanName || 'Producto Oferta'),
+          cantidad: qty
+        });
+      }
+      return offers;
+    }
+
     function renderVentas() {
       const container = document.getElementById('ventasList');
       const turnoFilter = document.getElementById('filterVentasTurno').value;
@@ -1615,32 +1638,143 @@
       });
 
       if (list.length === 0) {
-        container.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">Todavía no se han registrado ventas para este filtro.</p>';
+        container.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">No hay operaciones registradas para este filtro.</p>';
         return;
       }
 
-      container.innerHTML = list.map(v => `
-        <div class="rounded-xl border border-slate-200 p-4 space-y-2 bg-slate-50/50">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="flex items-center flex-wrap gap-1">
-              ${state.session.role === 'superadmin' ? `<input type="checkbox" class="sale-boleta-chk mr-1.5 rounded text-amber-500 focus:ring-amber-400" data-sale-id="${v.id}" ${selectedSaleIdsForBoleta.has(v.id) ? 'checked' : ''} />` : ''}
-              <span class="text-xs font-bold text-indigo-600">Venta #${v.id}</span>
-              <span class="text-xs text-slate-500 ml-2">${v.fecha}</span>
-              <span class="text-xs font-semibold text-slate-700 ml-2">• ${v.turno || ''} (${v.responsable || ''})</span>
-              <span class="text-xs font-medium text-slate-700 ml-2">• ${v.cliente}</span>
-              ${v.boleta ? `<span class="ml-2 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-bold">Boleta: ${v.boleta}</span>` : `<span class="ml-2 px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 text-[11px] font-semibold">Sin boleta</span>`}
+      const groups = [];
+      const boletaGroupMap = new Map();
+
+      list.forEach(v => {
+        const dayPart = v.rawDate
+          ? new Date(v.rawDate).toLocaleDateString('es-PE')
+          : String(v.fecha || '').split(',')[0].trim();
+        const cleanBoleta = (v.boleta || '').trim().toUpperCase();
+        const bKey = cleanBoleta ? `${dayPart}__${cleanBoleta}` : `SINGLE_${v.id}`;
+
+        const paidItems = (v.items || []).map(i => ({ ...i }));
+        const offerItems = parseFreeOfferItemsFromSale(v);
+
+        if (cleanBoleta && boletaGroupMap.has(bKey)) {
+          const g = boletaGroupMap.get(bKey);
+          g.ids.push(v.id);
+          g.total += Number(v.total || 0);
+          g.paidItems.push(...paidItems);
+          g.offerItems.push(...offerItems);
+        } else {
+          const g = {
+            ids: [v.id],
+            boleta: cleanBoleta,
+            fecha: v.fecha,
+            turno: v.turno || '',
+            responsable: v.responsable || '',
+            cliente: v.cliente || '',
+            total: Number(v.total || 0),
+            paidItems,
+            offerItems
+          };
+          groups.push(g);
+          if (cleanBoleta) boletaGroupMap.set(bKey, g);
+        }
+      });
+
+      const isSA = state.session.role === 'superadmin';
+
+      container.innerHTML = groups.map(g => {
+        const hasPaid = g.paidItems.length > 0;
+        const hasOffer = g.offerItems.length > 0;
+        let contextBadge = '';
+        if (hasPaid && hasOffer) {
+          contextBadge = `<span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold">Incluye Cortesía / Promo</span>`;
+        } else if (!hasPaid && hasOffer) {
+          contextBadge = `<span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold">Cortesía / Promoción</span>`;
+        }
+
+        const primaryId = g.ids[0];
+        const titleLabel = g.ids.length > 1
+          ? `Boleta Agrupada (${g.ids.map(id => '#' + id).join(', ')})`
+          : `Venta #${primaryId}`;
+
+        const cleanClientNote = g.cliente && !g.cliente.startsWith('Boleta:') && !g.cliente.startsWith('OFERTA GRATIS') && g.cliente !== 'Cliente general'
+          ? `<span class="text-xs font-medium text-slate-600">• ${g.cliente.replace(/\s*\|\s*Boleta:.*$/i, '')}</span>`
+          : '';
+
+        const mergedPaid = [];
+        const paidMap = new Map();
+        g.paidItems.forEach(i => {
+          const key = `${i.cd}__${Number(i.precio)}`;
+          if (paidMap.has(key)) {
+            paidMap.get(key).cantidad += Number(i.cantidad || 0);
+          } else {
+            const entry = { ...i, cantidad: Number(i.cantidad || 0) };
+            paidMap.set(key, entry);
+            mergedPaid.push(entry);
+          }
+        });
+
+        const mergedOffers = [];
+        const offerMap = new Map();
+        g.offerItems.forEach(o => {
+          const key = o.cd;
+          if (offerMap.has(key)) {
+            offerMap.get(key).cantidad += Number(o.cantidad || 0);
+          } else {
+            const entry = { ...o, cantidad: Number(o.cantidad || 0) };
+            offerMap.set(key, entry);
+            mergedOffers.push(entry);
+          }
+        });
+
+        const paidRowsHtml = mergedPaid.map(i => `
+          <div class="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs">
+            <div class="font-medium text-slate-800">
+              <span class="font-mono font-bold text-indigo-700 mr-1">[${i.cd}]</span>
+              <span>${i.nombre}</span>
+              <span class="font-bold text-slate-900 ml-1">(x${i.cantidad})</span>
             </div>
-            <div class="flex items-center gap-2">
-              <span class="text-base font-extrabold text-slate-900">${formatMoney(v.total)}</span>
-              ${state.session.role === 'superadmin' ? `<button type="button" data-action="edit-boleta" data-id="${v.id}" class="px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 text-xs font-semibold transition">Boleta</button><button type="button" data-action="delete-sale" data-id="${v.id}" class="px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition">Eliminar</button>` : ''}
+            <span class="font-bold text-slate-900 whitespace-nowrap">${formatMoney(i.precio * i.cantidad)}</span>
+          </div>
+        `).join('');
+
+        const offerRowsHtml = mergedOffers.map(o => `
+          <div class="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-300 text-xs">
+            <div class="font-semibold text-amber-950">
+              <span class="font-mono font-bold text-amber-800 mr-1">[${o.cd}]</span>
+              <span>${o.nombre}</span>
+              <span class="font-bold ml-1">(x${o.cantidad})</span>
+            </div>
+            <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[11px] whitespace-nowrap">OFERTA GRATIS (S/ 0.00)</span>
+          </div>
+        `).join('');
+
+        const anySelected = g.ids.some(id => selectedSaleIdsForBoleta.has(id));
+
+        return `
+          <div class="rounded-xl border border-slate-200 p-4 space-y-2.5 bg-slate-50/60 shadow-xs">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+              <div class="flex items-center flex-wrap gap-1.5">
+                ${isSA ? `<input type="checkbox" class="sale-boleta-chk mr-1 rounded text-amber-500 focus:ring-amber-400" data-sale-id="${primaryId}" data-group-ids="${g.ids.join(',')}" ${anySelected ? 'checked' : ''} />` : ''}
+                <span class="text-xs font-bold text-indigo-600">${titleLabel}</span>
+                <span class="text-xs text-slate-500">• ${g.fecha}</span>
+                <span class="text-xs font-semibold text-slate-700">• ${g.turno} (${g.responsable})</span>
+                ${cleanClientNote}
+                ${g.boleta
+                  ? `<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-bold">Boleta: ${g.boleta}</span>`
+                  : `<span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 text-[11px] font-semibold">Sin boleta</span>`}
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                ${contextBadge}
+                <span class="text-base font-extrabold text-slate-900">${formatMoney(g.total)}</span>
+                ${isSA ? `<button type="button" data-action="edit-boleta" data-id="${primaryId}" data-group-ids="${g.ids.join(',')}" class="px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 text-xs font-semibold transition">Boleta</button><button type="button" data-action="delete-sale" data-id="${primaryId}" data-group-ids="${g.ids.join(',')}" class="px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition">Eliminar</button>` : ''}
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              ${paidRowsHtml}
+              ${offerRowsHtml}
             </div>
           </div>
-          <div class="text-xs text-slate-600 flex flex-wrap gap-2">
-            ${v.items.map(i => `<span class="px-2 py-1 rounded-md bg-white border border-slate-200">${i.cd} ${i.nombre} x${i.cantidad} (${formatMoney(i.precio * i.cantidad)})</span>`).join('')}
-            ${v.regalo ? `<span class="px-2 py-1 rounded-md bg-amber-100 border border-amber-300 text-amber-900 font-semibold">Oferta (&gt;S/200): ${v.regalo} — GRATIS</span>` : ''}
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function renderAdminStockTable() {
@@ -1697,7 +1831,7 @@
       const tbody = document.getElementById('auditoriaTableBody');
       const visibleAuds = getVisibleAuditoria();
       if (visibleAuds.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 text-sm">No hay correcciones ni cambios registrados aún.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 text-sm">No hay correcciones registradas.</td></tr>`;
         return;
       }
 
@@ -1811,7 +1945,6 @@
       renderCierreSheet();
     }
 
-    // Login Role Switch
     const btnRoleUser = document.getElementById('btnRoleUser');
     const btnRoleAdmin = document.getElementById('btnRoleAdmin');
     const adminPassWrap = document.getElementById('adminPassWrap');
@@ -1824,11 +1957,13 @@
         btnRoleUser.className = 'py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition';
         adminPassWrap.classList.remove('hidden');
         shiftSelectorWrap.classList.add('hidden');
+        document.getElementById('loginResponsable').placeholder = 'Usuario Administrador';
       } else {
         btnRoleUser.className = 'py-2 rounded-lg text-xs font-bold bg-white text-slate-900 shadow-xs transition';
         btnRoleAdmin.className = 'py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition';
         adminPassWrap.classList.add('hidden');
         shiftSelectorWrap.classList.remove('hidden');
+        document.getElementById('loginResponsable').placeholder = 'Nombre y apellido';
       }
       document.getElementById('loginAdminError').classList.add('hidden');
     }
@@ -1845,12 +1980,17 @@
 
     document.getElementById('formLogin').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const resp = document.getElementById('loginResponsable').value.trim().toUpperCase() || 'MIJAIL';
+      const resp = document.getElementById('loginResponsable').value.trim().toUpperCase();
+      if (!resp) {
+        showToast('Ingresa el nombre del responsable');
+        return;
+      }
 
       if (loginRoleMode === 'admin') {
         const pass = document.getElementById('loginAdminPass').value.trim();
         const isSuper = (resp === SUPER_ADMIN_USER && pass === SUPER_ADMIN_PASS);
-        if (!isSuper && pass !== getAdminPass()) {
+        const isLuisAdmin = (resp === STANDARD_ADMIN_USER && pass === getAdminPass());
+        if (!isSuper && !isLuisAdmin) {
           document.getElementById('loginAdminError').classList.remove('hidden');
           return;
         }
@@ -1865,7 +2005,7 @@
         document.getElementById('loginAdminPass').value = '';
         saveState();
         renderAll();
-        showToast(`Bienvenido Administrador: ${resp}`);
+        showToast(`Sesión iniciada: ${resp}`);
         return;
       }
 
@@ -1901,11 +2041,12 @@
 
     document.getElementById('btnSwitchShift').addEventListener('click', () => {
       state.session.loggedIn = false;
+      state.session.responsable = '';
+      document.getElementById('loginResponsable').value = '';
       saveState();
       renderSession();
     });
 
-    // Supabase Modal Listeners
     const modalSb = document.getElementById('modalSupabase');
     document.getElementById('btnOpenSupabase').addEventListener('click', () => modalSb.classList.remove('hidden'));
     document.getElementById('btnCloseSupabase').addEventListener('click', () => modalSb.classList.add('hidden'));
@@ -1939,7 +2080,6 @@
       showToast('Cambiado a Modo Local');
     });
 
-    // Navigation Listeners
     document.getElementById('tabBtnCatalogo').addEventListener('click', () => setTab('catalogo'));
     document.getElementById('tabBtnEntradas').addEventListener('click', () => setTab('entradas'));
     document.getElementById('tabBtnVentas').addEventListener('click', () => setTab('ventas'));
@@ -1974,10 +2114,12 @@
       }
       state.shiftSaleIds = [];
       state.session.loggedIn = false;
+      state.session.responsable = '';
       state.session.turnoId = null;
+      document.getElementById('loginResponsable').value = '';
       saveState();
       renderAll();
-      showToast('Turno cerrado y bloqueado por hoy. Abre el siguiente turno.');
+      showToast('Turno cerrado correctamente. Listo para el siguiente turno.');
     }
 
     function getPendingShiftSales() {
@@ -2094,7 +2236,6 @@
       }
     });
 
-    // Catalog & Cart Listeners
     document.getElementById('searchProduct').addEventListener('input', renderProducts);
     document.getElementById('filterCategory').addEventListener('change', renderProducts);
     document.getElementById('filterStock').addEventListener('change', renderProducts);
@@ -2107,10 +2248,9 @@
       renderProducts();
     });
 
-    // Modal Confirmar Venta / Oferta
     const modalSell = document.getElementById('modalSellConfirm');
     let currentSellProd = null;
-    let sellMode = 'sale'; // 'sale' | 'offer'
+    let sellMode = 'sale';
 
     function updateSellModalUI() {
       if (!currentSellProd) return;
@@ -2232,7 +2372,6 @@
         }
       }
 
-      // Modo Local
       currentSellProd.stock -= qty;
       if (!getActiveShiftCounters()[currentSellProd.id]) {
         getActiveShiftCounters()[currentSellProd.id] = { inicial: currentSellProd.stock + qty, reposicion: 0, venta: 0, oferta: 0 };
@@ -2261,7 +2400,6 @@
       showToast(isFreeOffer ? `Oferta gratis registrada (${currentSellProd.cd} x${qty})` : `Venta registrada: ${currentSellProd.cd} x${qty}`);
     });
 
-    // Admin Entradas Form
     document.getElementById('formEntrada').addEventListener('submit', async (e) => {
       e.preventDefault();
       const prodId = Number(document.getElementById('entradaProducto').value);
@@ -2287,7 +2425,7 @@
           document.getElementById('entradaCantidad').value = '';
           document.getElementById('entradaNota').value = '';
           await syncFromSupabase();
-          showToast(`Entrada guardada en Supabase: +${cantidad} a ${prod.nombre}`);
+          showToast(`Entrada registrada: +${cantidad} a ${prod.nombre}`);
           return;
         } catch (err) {
           showToast('Error Supabase en entrada: ' + err.message);
@@ -2325,7 +2463,6 @@
     document.getElementById('filterVentasTurno').addEventListener('change', renderVentas);
     document.getElementById('searchVentas').addEventListener('input', renderVentas);
 
-    // Modal: Agregar Stock
     const modal = document.getElementById('modalProduct');
 
     function populateModalProducts() {
@@ -2348,7 +2485,7 @@
 
     document.getElementById('btnOpenAddProduct').addEventListener('click', () => {
       populateModalProducts();
-      document.getElementById('modalProdResp').value = state.session.responsable || 'MIJAIL';
+      document.getElementById('modalProdResp').value = state.session.responsable || '';
       modal.classList.remove('hidden');
     });
     document.getElementById('btnCloseModal').addEventListener('click', () => modal.classList.add('hidden'));
@@ -2370,7 +2507,7 @@
             p_cantidad: cantidad,
             p_responsable: responsable,
             p_turno_id: state.session.turnoId,
-            p_nota: 'Ingreso rápido'
+            p_nota: 'Ingreso de stock'
           });
           if (error) throw error;
           if (!getActiveShiftCounters()[prodId]) getActiveShiftCounters()[prodId] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
@@ -2378,7 +2515,7 @@
           e.target.reset();
           modal.classList.add('hidden');
           await syncFromSupabase();
-          showToast(`Stock agregado en Supabase: +${cantidad} a ${prod.nombre}`);
+          showToast(`Stock agregado: +${cantidad} a ${prod.nombre}`);
           return;
         } catch (err) {
           showToast('Error Supabase al agregar stock: ' + err.message);
@@ -2402,7 +2539,7 @@
         stockAntes,
         stockDespues: prod.stock,
         responsable,
-        nota: 'Ingreso rápido'
+        nota: 'Ingreso de stock'
       });
 
       e.target.reset();
@@ -2412,7 +2549,6 @@
       showToast(`Stock agregado: +${cantidad} a ${prod.nombre}`);
     });
 
-    // Modal: Corregir Entrada (Usuario Normal y Admin)
     const modalFix = document.getElementById('modalFixEntry');
 
     function openFixModal(preselectedId = null) {
@@ -2463,7 +2599,7 @@
             const { error: errDel } = await supabaseClient.from('entradas_stock').delete().eq('id', entryId);
             if (errDel) throw errDel;
             await syncFromSupabase();
-            showToast('Entrada eliminada de Supabase y stock ajustado');
+            showToast('Entrada eliminada y stock ajustado');
             return;
           }
           state.entradas = state.entradas.filter(item => item.id !== entryId);
@@ -2503,7 +2639,7 @@
           modalFix.classList.add('hidden');
           document.getElementById('fixEntryReason').value = '';
           await syncFromSupabase();
-          showToast('Entrada corregida y registrada para el Administrador');
+          showToast('Corrección guardada correctamente');
           return;
         } catch (err) {
           showToast('Error al corregir en Supabase: ' + err.message);
@@ -2544,7 +2680,7 @@
       document.getElementById('fixEntryReason').value = '';
       saveState();
       renderAll();
-      showToast(`Entrada corregida (${oldQty} → ${newQty}). Registrado en Auditoría.`);
+      showToast(`Entrada corregida (${oldQty} → ${newQty})`);
     });
 
     document.getElementById('formChangeAdminPass').addEventListener('submit', (e) => {
@@ -2565,7 +2701,7 @@
         localStorage.setItem(ADMIN_PASS_KEY, nw);
       } catch (err) {}
       e.target.reset();
-      showToast('Contraseña de Administrador actualizada correctamente');
+      showToast('Contraseña actualizada correctamente');
     });
 
     document.getElementById('searchAdminStock').addEventListener('input', renderAdminStockTable);
@@ -2597,14 +2733,14 @@
         state.auditoria.unshift({
           id: Date.now() + prodId,
           rawDate: new Date().toISOString(),
-        fecha: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+          fecha: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
           productoNombre: `${prod.cd} — ${prod.nombre}`,
           cantidadAnterior: oldAlmacen,
           cantidadNueva: newAlmacen,
           diferencia: newAlmacen - oldAlmacen,
           modificadoPor: state.session.responsable,
           rol: state.session.role === 'superadmin' ? 'superadmin' : 'admin',
-          motivo: 'Ajuste manual de stock en almacén'
+          motivo: 'Ajuste de stock en almacén'
         });
         changed = true;
       }
@@ -2649,7 +2785,7 @@
         renderAll();
         showToast(count > 0 ? `Se actualizaron ${count} producto(s)` : 'No hubo cambios pendientes');
       } catch (err) {
-        showToast('Error al guardar cambios masivos: ' + err.message);
+        showToast('Error al guardar cambios: ' + err.message);
       }
     });
 
@@ -2678,12 +2814,12 @@
     document.getElementById('btnResetNormalAdminPass').addEventListener('click', () => {
       try { localStorage.removeItem(ADMIN_PASS_KEY); } catch (err) {}
       renderSession();
-      showToast('Contraseña de Administrador restablecida a admin123');
+      showToast('Contraseña restablecida a admin123');
     });
 
     const selectedSaleIdsForBoleta = new Set();
     const modalEditBoleta = document.getElementById('modalEditBoleta');
-    let saleIdEditingBoleta = null;
+    let saleIdsEditingBoleta = [];
 
     function buildUpdatedClienteWithBoleta(sale, newBoleta) {
       const cleanBoleta = (newBoleta || '').trim().toUpperCase();
@@ -2705,19 +2841,26 @@
     document.getElementById('ventasList').addEventListener('change', (e) => {
       const chk = e.target.closest('.sale-boleta-chk');
       if (!chk) return;
-      const id = Number(chk.dataset.saleId);
-      if (chk.checked) selectedSaleIdsForBoleta.add(id);
-      else selectedSaleIdsForBoleta.delete(id);
+      const groupIds = (chk.dataset.groupIds || String(chk.dataset.saleId))
+        .split(',').map(x => Number(x.trim())).filter(Boolean);
+      groupIds.forEach(id => {
+        if (chk.checked) selectedSaleIdsForBoleta.add(id);
+        else selectedSaleIdsForBoleta.delete(id);
+      });
       updateSelectedCountLabel();
     });
 
     document.getElementById('ventasList').addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-action="edit-boleta"]');
       if (!btn || state.session.role !== 'superadmin') return;
-      saleIdEditingBoleta = Number(btn.dataset.id);
-      const sale = state.ventas.find(v => v.id === saleIdEditingBoleta);
+      const groupIds = (btn.dataset.groupIds || String(btn.dataset.id))
+        .split(',').map(x => Number(x.trim())).filter(Boolean);
+      saleIdsEditingBoleta = groupIds;
+      const sale = state.ventas.find(v => v.id === groupIds[0]);
       if (!sale) return;
-      document.getElementById('editBoletaInfo').textContent = `Venta #${sale.id} — ${formatMoney(sale.total)}`;
+      document.getElementById('editBoletaInfo').textContent = groupIds.length > 1
+        ? `Boleta agrupada (${groupIds.map(id => '#' + id).join(', ')})`
+        : `Venta #${sale.id} — ${formatMoney(sale.total)}`;
       document.getElementById('editBoletaInput').value = sale.boleta || '';
       modalEditBoleta.classList.remove('hidden');
     });
@@ -2727,22 +2870,24 @@
 
     document.getElementById('formEditBoleta').addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!saleIdEditingBoleta || state.session.role !== 'superadmin') return;
-      const sale = state.ventas.find(v => v.id === saleIdEditingBoleta);
-      if (!sale) return;
+      if (!saleIdsEditingBoleta.length || state.session.role !== 'superadmin') return;
       const newBoleta = document.getElementById('editBoletaInput').value.trim().toUpperCase();
-      const newCliente = buildUpdatedClienteWithBoleta(sale, newBoleta);
       try {
-        if (supabaseClient) {
-          const { error } = await supabaseClient.from('ventas').update({ cliente: newCliente }).eq('id', sale.id);
-          if (error) throw error;
+        for (const sid of saleIdsEditingBoleta) {
+          const sale = state.ventas.find(v => v.id === sid);
+          if (!sale) continue;
+          const newCliente = buildUpdatedClienteWithBoleta(sale, newBoleta);
+          if (supabaseClient) {
+            const { error } = await supabaseClient.from('ventas').update({ cliente: newCliente }).eq('id', sale.id);
+            if (error) throw error;
+          }
+          sale.cliente = newCliente;
+          sale.boleta = newBoleta;
         }
-        sale.cliente = newCliente;
-        sale.boleta = newBoleta;
         modalEditBoleta.classList.add('hidden');
         saveState();
         renderVentas();
-        showToast(newBoleta ? `Boleta actualizada: ${newBoleta}` : 'Boleta quitada de la venta');
+        showToast(newBoleta ? `Boleta actualizada: ${newBoleta}` : 'Boleta quitada del registro');
       } catch (err) {
         showToast('Error al actualizar boleta: ' + err.message);
       }
@@ -2751,12 +2896,12 @@
     document.getElementById('btnAssignBulkBoleta').addEventListener('click', async () => {
       if (state.session.role !== 'superadmin') return;
       if (selectedSaleIdsForBoleta.size === 0) {
-        showToast('Selecciona al menos una venta con la casilla');
+        showToast('Selecciona al menos un registro con la casilla');
         return;
       }
       const newBoleta = document.getElementById('bulkBoletaInput').value.trim().toUpperCase();
       if (!newBoleta) {
-        showToast('Escribe el N° de Boleta para asignar');
+        showToast('Ingresa el N° de Boleta para asignar');
         return;
       }
       try {
@@ -2776,23 +2921,27 @@
         updateSelectedCountLabel();
         saveState();
         renderVentas();
-        showToast(`Boleta ${newBoleta} asignada a las ventas seleccionadas`);
+        showToast(`Boleta ${newBoleta} asignada a los registros seleccionados`);
       } catch (err) {
         showToast('Error al asignar boleta: ' + err.message);
       }
     });
 
     const modalDelSale = document.getElementById('modalDeleteSale');
-    let saleIdToDelete = null;
+    let saleIdsToDelete = [];
 
     document.getElementById('ventasList').addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-action="delete-sale"]');
       if (!btn || state.session.role !== 'superadmin') return;
-      saleIdToDelete = Number(btn.dataset.id);
-      const sale = state.ventas.find(v => v.id === saleIdToDelete);
-      if (!sale) return;
-      document.getElementById('deleteSaleInfo').textContent =
-        `Se eliminará la Venta #${sale.id} (${formatMoney(sale.total)}) y se devolverán las unidades al stock.`;
+      const groupIds = (btn.dataset.groupIds || String(btn.dataset.id))
+        .split(',').map(x => Number(x.trim())).filter(Boolean);
+      saleIdsToDelete = groupIds;
+      const sales = groupIds.map(id => state.ventas.find(v => v.id === id)).filter(Boolean);
+      if (!sales.length) return;
+      const totalAmt = sales.reduce((acc, s) => acc + Number(s.total || 0), 0);
+      document.getElementById('deleteSaleInfo').textContent = sales.length > 1
+        ? `Se eliminarán ${sales.length} registros agrupados (${groupIds.map(id => '#' + id).join(', ')}) por ${formatMoney(totalAmt)} y se devolverán las unidades al stock.`
+        : `Se eliminará la Venta #${sales[0].id} (${formatMoney(totalAmt)}) y se devolverán las unidades al stock.`;
       modalDelSale.classList.remove('hidden');
     });
 
@@ -2800,67 +2949,68 @@
     document.getElementById('btnCancelDeleteSale').addEventListener('click', () => modalDelSale.classList.add('hidden'));
 
     document.getElementById('btnConfirmDeleteSale').addEventListener('click', async () => {
-      if (!saleIdToDelete || state.session.role !== 'superadmin') return;
-      const sale = state.ventas.find(v => v.id === saleIdToDelete);
-      if (!sale) { modalDelSale.classList.add('hidden'); return; }
+      if (!saleIdsToDelete.length || state.session.role !== 'superadmin') return;
 
       try {
-        // Restore stock for sold items
-        for (const item of (sale.items || [])) {
-          const prod = state.products.find(p => p.id === Number(item.id) || p.cd === item.cd);
-          if (prod) {
-            const newStock = prod.stock + item.cantidad;
-            if (supabaseClient) {
-              const { error } = await supabaseClient
-                .from('productos')
-                .update({ stock: newStock, updated_at: new Date().toISOString() })
-                .eq('id', prod.id);
-              if (error) throw error;
-            }
-            prod.stock = newStock;
-            if (getActiveShiftCounters()[prod.id]) {
-              getActiveShiftCounters()[prod.id].venta = Math.max(0, getActiveShiftCounters()[prod.id].venta - item.cantidad);
-            }
-          }
-        }
+        for (const sid of saleIdsToDelete) {
+          const sale = state.ventas.find(v => v.id === sid);
+          if (!sale) continue;
 
-        // Restore stock if it was a direct free offer
-        if (sale.cliente && sale.cliente.startsWith('OFERTA GRATIS')) {
-          const m = sale.cliente.match(/\((O\d+)\s*x(\d+)\)/i);
-          if (m) {
-            const prod = state.products.find(p => p.cd === m[1].toUpperCase());
-            const qty = parseInt(m[2], 10) || 1;
+          for (const item of (sale.items || [])) {
+            const prod = state.products.find(p => p.id === Number(item.id) || p.cd === item.cd);
             if (prod) {
-              const newStock = prod.stock + qty;
+              const newStock = prod.stock + item.cantidad;
               if (supabaseClient) {
-                await supabaseClient.from('productos').update({ stock: newStock, updated_at: new Date().toISOString() }).eq('id', prod.id);
+                const { error } = await supabaseClient
+                  .from('productos')
+                  .update({ stock: newStock, updated_at: new Date().toISOString() })
+                  .eq('id', prod.id);
+                if (error) throw error;
               }
               prod.stock = newStock;
               if (getActiveShiftCounters()[prod.id]) {
-                getActiveShiftCounters()[prod.id].oferta = Math.max(0, getActiveShiftCounters()[prod.id].oferta - qty);
+                getActiveShiftCounters()[prod.id].venta = Math.max(0, getActiveShiftCounters()[prod.id].venta - item.cantidad);
               }
             }
           }
+
+          if (sale.cliente && sale.cliente.startsWith('OFERTA GRATIS')) {
+            const m = sale.cliente.match(/\((O\d+)\s*x(\d+)\)/i);
+            if (m) {
+              const prod = state.products.find(p => p.cd === m[1].toUpperCase());
+              const qty = parseInt(m[2], 10) || 1;
+              if (prod) {
+                const newStock = prod.stock + qty;
+                if (supabaseClient) {
+                  await supabaseClient.from('productos').update({ stock: newStock, updated_at: new Date().toISOString() }).eq('id', prod.id);
+                }
+                prod.stock = newStock;
+                if (getActiveShiftCounters()[prod.id]) {
+                  getActiveShiftCounters()[prod.id].oferta = Math.max(0, getActiveShiftCounters()[prod.id].oferta - qty);
+                }
+              }
+            }
+          }
+
+          if (supabaseClient) {
+            const { error: errDel } = await supabaseClient.from('ventas').delete().eq('id', sid);
+            if (errDel) throw errDel;
+          }
+          state.ventas = state.ventas.filter(v => v.id !== sid);
         }
 
+        modalDelSale.classList.add('hidden');
+        saleIdsToDelete = [];
         if (supabaseClient) {
-          const { error: errDel } = await supabaseClient.from('ventas').delete().eq('id', saleIdToDelete);
-          if (errDel) throw errDel;
-          modalDelSale.classList.add('hidden');
-          saleIdToDelete = null;
           await syncFromSupabase();
-          showToast('Venta eliminada de Supabase y stock devuelto');
+          showToast('Registro eliminado y stock restaurado');
           return;
         }
-
-        state.ventas = state.ventas.filter(v => v.id !== saleIdToDelete);
-        modalDelSale.classList.add('hidden');
-        saleIdToDelete = null;
         saveState();
         renderAll();
-        showToast('Venta eliminada y stock devuelto');
+        showToast('Registro eliminado y stock restaurado');
       } catch (err) {
-        showToast('Error al eliminar venta: ' + err.message);
+        showToast('Error al eliminar registro: ' + err.message);
       }
     });
 
@@ -2880,9 +3030,9 @@
         });
         saveState();
         renderAll();
-        showToast('Todo el stock inicial y de almacén quedó en 0');
+        showToast('Stock inicial y de almacén actualizado a 0');
       } catch (err) {
-        showToast('Error al poner en 0: ' + err.message);
+        showToast('Error al actualizar en 0: ' + err.message);
       }
     });
 
@@ -2927,7 +3077,7 @@
             }))
           }));
         } catch (err) {
-          showToast('Error al cargar reporte mensual de Supabase: ' + err.message);
+          showToast('Error al cargar reporte mensual: ' + err.message);
           return;
         }
       } else {
@@ -2974,7 +3124,7 @@
       const rows = Object.values(byProd).sort((a, b) => b.soles - a.soles);
       const tbody = document.getElementById('monthlyReportTableBody');
       if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">No hay ventas registradas en este mes.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">No hay operaciones registradas en este periodo.</td></tr>';
       } else {
         tbody.innerHTML = rows.map(r => `
           <tr>
@@ -3086,15 +3236,14 @@
           document.getElementById('adminSaleQty').value = '1';
           document.getElementById('adminSaleBoleta').value = '';
           await syncFromSupabase();
-          showToast(`Venta olvidada registrada en Supabase (${shiftVal})`);
+          showToast(`Operación regularizada (${shiftVal})`);
           return;
         } catch (err) {
-          showToast('Error Supabase al registrar venta olvidada: ' + err.message);
+          showToast('Error Supabase al regularizar operación: ' + err.message);
           return;
         }
       }
 
-      // Modo Local
       prod.stock -= qty;
       if (dateVal === getOperationalDayKey()) {
         const sc = getActiveShiftCounters(shiftVal);
@@ -3120,7 +3269,7 @@
       document.getElementById('adminSaleBoleta').value = '';
       saveState();
       renderAll();
-      showToast(`Venta olvidada registrada (${shiftVal})`);
+      showToast(`Operación regularizada (${shiftVal})`);
     });
 
     document.getElementById('btnResetDemo').addEventListener('click', () => {
@@ -3129,7 +3278,7 @@
       state.session = currentSession;
       saveState();
       renderAll();
-      showToast('Lista restablecida con los 35 productos de tu cierre de caja');
+      showToast('Catálogo base restablecido');
     });
 
     loadState();
