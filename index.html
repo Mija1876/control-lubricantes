@@ -24,7 +24,7 @@
         print-color-adjust: exact !important;
       }
       body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
-      header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase, #modalFixEntry, #modalSellConfirm, #modalDeleteSale, #modalPendingBoletas { display: none !important; }
+      header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase, #modalFixEntry, #modalSellConfirm, #modalDeleteSale, #modalPendingBoletas, #modalEditBoleta { display: none !important; }
       main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
       body:not(.printing-monthly-report) #viewCierre { display: block !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
       body.printing-monthly-report #viewCierre { display: none !important; }
@@ -381,6 +381,20 @@
           </button>
         </div>
       </form>
+
+      <!-- Barra Super Admin: Seleccionar ventas y asignar o modificar N° de Boleta -->
+      <div id="superAdminBoletaBar" class="superadmin-only hidden rounded-xl bg-slate-900 text-white p-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div class="text-xs">
+          <span class="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-bold uppercase mr-2">Super Admin</span>
+          <span id="selectedSalesCount">0 venta(s) seleccionada(s)</span>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="bulkBoletaInput" type="text" placeholder="N° de Boleta (ej. B001-150)" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-amber-400" />
+          <button id="btnAssignBulkBoleta" type="button" class="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold transition">
+            Asignar Boleta a Seleccionadas
+          </button>
+        </div>
+      </div>
 
       <div id="ventasList" class="space-y-3"></div>
     </div>
@@ -830,6 +844,30 @@
           <button type="submit" class="py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition">
             Guardar Boletas y Cerrar
           </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Editar N° de Boleta (Solo Super Admin) -->
+  <div id="modalEditBoleta" class="hidden fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-sm w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-800 mb-1">Super Admin</span>
+          <h3 class="text-lg font-bold text-slate-900">Poner / Modificar N° de Boleta</h3>
+        </div>
+        <button id="btnCloseEditBoleta" type="button" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">&times;</button>
+      </div>
+      <form id="formEditBoleta" class="space-y-3">
+        <p id="editBoletaInfo" class="text-xs text-slate-600"></p>
+        <div>
+          <label for="editBoletaInput" class="block text-xs font-semibold text-slate-700 mb-1">N° de Boleta (deja vacío para quitar)</label>
+          <input id="editBoletaInput" type="text" placeholder="Ej. B001-00150" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-amber-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <button id="btnCancelEditBoleta" type="button" class="py-2 px-3 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100">Cancelar</button>
+          <button type="submit" class="py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold">Guardar Boleta</button>
         </div>
       </form>
     </div>
@@ -1584,7 +1622,8 @@
       container.innerHTML = list.map(v => `
         <div class="rounded-xl border border-slate-200 p-4 space-y-2 bg-slate-50/50">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <div>
+            <div class="flex items-center flex-wrap gap-1">
+              ${state.session.role === 'superadmin' ? `<input type="checkbox" class="sale-boleta-chk mr-1.5 rounded text-amber-500 focus:ring-amber-400" data-sale-id="${v.id}" ${selectedSaleIdsForBoleta.has(v.id) ? 'checked' : ''} />` : ''}
               <span class="text-xs font-bold text-indigo-600">Venta #${v.id}</span>
               <span class="text-xs text-slate-500 ml-2">${v.fecha}</span>
               <span class="text-xs font-semibold text-slate-700 ml-2">• ${v.turno || ''} (${v.responsable || ''})</span>
@@ -1593,7 +1632,7 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="text-base font-extrabold text-slate-900">${formatMoney(v.total)}</span>
-              ${state.session.role === 'superadmin' ? `<button type="button" data-action="delete-sale" data-id="${v.id}" class="px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition">Eliminar</button>` : ''}
+              ${state.session.role === 'superadmin' ? `<button type="button" data-action="edit-boleta" data-id="${v.id}" class="px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 text-xs font-semibold transition">Boleta</button><button type="button" data-action="delete-sale" data-id="${v.id}" class="px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition">Eliminar</button>` : ''}
             </div>
           </div>
           <div class="text-xs text-slate-600 flex flex-wrap gap-2">
@@ -1954,6 +1993,10 @@
     }
 
     document.getElementById('btnCloseShift').addEventListener('click', async () => {
+      if (state.session.role === 'superadmin') {
+        await executeCloseShift();
+        return;
+      }
       if (supabaseClient) await syncFromSupabase();
       const pending = getPendingShiftSales();
       if (pending.length === 0) {
@@ -2636,6 +2679,107 @@
       try { localStorage.removeItem(ADMIN_PASS_KEY); } catch (err) {}
       renderSession();
       showToast('Contraseña de Administrador restablecida a admin123');
+    });
+
+    const selectedSaleIdsForBoleta = new Set();
+    const modalEditBoleta = document.getElementById('modalEditBoleta');
+    let saleIdEditingBoleta = null;
+
+    function buildUpdatedClienteWithBoleta(sale, newBoleta) {
+      const cleanBoleta = (newBoleta || '').trim().toUpperCase();
+      const baseCliente = (sale.cliente || '').replace(/\s*\|\s*Boleta:.*$/i, '').replace(/^Boleta:.*$/i, '').trim();
+      if (!cleanBoleta) {
+        return baseCliente || (Number(sale.total) === 0 ? 'OFERTA GRATIS' : 'Cliente general');
+      }
+      if (baseCliente && baseCliente !== 'Cliente general' && baseCliente !== 'Regularización Admin') {
+        return `${baseCliente} | Boleta: ${cleanBoleta}`;
+      }
+      return `Boleta: ${cleanBoleta}`;
+    }
+
+    function updateSelectedCountLabel() {
+      const el = document.getElementById('selectedSalesCount');
+      if (el) el.textContent = `${selectedSaleIdsForBoleta.size} venta(s) seleccionada(s)`;
+    }
+
+    document.getElementById('ventasList').addEventListener('change', (e) => {
+      const chk = e.target.closest('.sale-boleta-chk');
+      if (!chk) return;
+      const id = Number(chk.dataset.saleId);
+      if (chk.checked) selectedSaleIdsForBoleta.add(id);
+      else selectedSaleIdsForBoleta.delete(id);
+      updateSelectedCountLabel();
+    });
+
+    document.getElementById('ventasList').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action="edit-boleta"]');
+      if (!btn || state.session.role !== 'superadmin') return;
+      saleIdEditingBoleta = Number(btn.dataset.id);
+      const sale = state.ventas.find(v => v.id === saleIdEditingBoleta);
+      if (!sale) return;
+      document.getElementById('editBoletaInfo').textContent = `Venta #${sale.id} — ${formatMoney(sale.total)}`;
+      document.getElementById('editBoletaInput').value = sale.boleta || '';
+      modalEditBoleta.classList.remove('hidden');
+    });
+
+    document.getElementById('btnCloseEditBoleta').addEventListener('click', () => modalEditBoleta.classList.add('hidden'));
+    document.getElementById('btnCancelEditBoleta').addEventListener('click', () => modalEditBoleta.classList.add('hidden'));
+
+    document.getElementById('formEditBoleta').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!saleIdEditingBoleta || state.session.role !== 'superadmin') return;
+      const sale = state.ventas.find(v => v.id === saleIdEditingBoleta);
+      if (!sale) return;
+      const newBoleta = document.getElementById('editBoletaInput').value.trim().toUpperCase();
+      const newCliente = buildUpdatedClienteWithBoleta(sale, newBoleta);
+      try {
+        if (supabaseClient) {
+          const { error } = await supabaseClient.from('ventas').update({ cliente: newCliente }).eq('id', sale.id);
+          if (error) throw error;
+        }
+        sale.cliente = newCliente;
+        sale.boleta = newBoleta;
+        modalEditBoleta.classList.add('hidden');
+        saveState();
+        renderVentas();
+        showToast(newBoleta ? `Boleta actualizada: ${newBoleta}` : 'Boleta quitada de la venta');
+      } catch (err) {
+        showToast('Error al actualizar boleta: ' + err.message);
+      }
+    });
+
+    document.getElementById('btnAssignBulkBoleta').addEventListener('click', async () => {
+      if (state.session.role !== 'superadmin') return;
+      if (selectedSaleIdsForBoleta.size === 0) {
+        showToast('Selecciona al menos una venta con la casilla');
+        return;
+      }
+      const newBoleta = document.getElementById('bulkBoletaInput').value.trim().toUpperCase();
+      if (!newBoleta) {
+        showToast('Escribe el N° de Boleta para asignar');
+        return;
+      }
+      try {
+        for (const id of selectedSaleIdsForBoleta) {
+          const sale = state.ventas.find(v => v.id === id);
+          if (!sale) continue;
+          const newCliente = buildUpdatedClienteWithBoleta(sale, newBoleta);
+          if (supabaseClient) {
+            const { error } = await supabaseClient.from('ventas').update({ cliente: newCliente }).eq('id', id);
+            if (error) throw error;
+          }
+          sale.cliente = newCliente;
+          sale.boleta = newBoleta;
+        }
+        selectedSaleIdsForBoleta.clear();
+        document.getElementById('bulkBoletaInput').value = '';
+        updateSelectedCountLabel();
+        saveState();
+        renderVentas();
+        showToast(`Boleta ${newBoleta} asignada a las ventas seleccionadas`);
+      } catch (err) {
+        showToast('Error al asignar boleta: ' + err.message);
+      }
     });
 
     const modalDelSale = document.getElementById('modalDeleteSale');
