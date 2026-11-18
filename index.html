@@ -31,6 +31,9 @@
       body.printing-monthly-report #viewAdmin { display: block !important; }
       body.printing-monthly-report #viewAdmin > *:not(#monthlyReportCard) { display: none !important; }
       body.printing-monthly-report #monthlyReportCard { border: none !important; box-shadow: none !important; padding: 0 !important; }
+      body.printing-monthly-report .mr-scroll-box { max-height: none !important; overflow: visible !important; }
+      body.printing-monthly-report table { font-size: 9px !important; width: 100% !important; border-collapse: collapse !important; }
+      body.printing-monthly-report th, body.printing-monthly-report td { padding: 2px 4px !important; }
       #printableSheet {
         border: none !important;
         box-shadow: none !important;
@@ -58,7 +61,7 @@
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
-  <!-- Login Overlay -->
+  <!-- Login Overlay: Usuario Normal (sin contraseña) y Administrador (con contraseña) -->
   <div id="loginOverlay" class="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-5">
       <div>
@@ -260,7 +263,7 @@
       </div>
     </div>
 
-    <!-- TAB 2: ENTRADAS / REPOSICIÓN -->
+    <!-- TAB 2: ENTRADAS / REPOSICIÓN (SOLO ADMINISTRADOR) -->
     <div id="viewEntradas" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       <div class="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div>
@@ -295,6 +298,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 class="text-base font-bold text-slate-900">Historial de Entradas / Reposiciones</h2>
+            <p class="text-xs text-slate-500">Control de ingresos de mercadería y ajustes registrados en el inventario.</p>
           </div>
           <input id="searchEntradas" type="text" placeholder="Filtrar por producto o responsable..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
@@ -308,7 +312,6 @@
                 <th class="py-2.5 px-3 font-semibold">Cantidad</th>
                 <th class="py-2.5 px-3 font-semibold">Stock (Antes → Después)</th>
                 <th class="py-2.5 px-3 font-semibold">Repuesto por</th>
-                <th class="py-2.5 px-3 font-semibold">Nota</th>
                 <th class="py-2.5 px-3 font-semibold text-right">Acción</th>
               </tr>
             </thead>
@@ -318,14 +321,31 @@
       </div>
     </div>
 
-    <!-- TAB 3: HISTORIAL DE VENTAS -->
+    <!-- TAB 3: HISTORIAL DE VENTAS (SOLO ADMINISTRADOR) -->
     <div id="viewVentas" class="hidden bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 class="text-base font-bold text-slate-900">Historial de Ventas Realizadas</h2>
-          <p class="text-xs text-slate-500">Registro consolidado de comprobantes, ventas y cortesías por turno.</p>
+          <h2 class="text-base font-bold text-slate-900">Historial de Ventas Realizadas (Solo Admin)</h2>
+          <p class="text-xs text-slate-500">Selecciona una fecha para consultar sus ventas, comprobantes y cortesías.</p>
         </div>
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-end gap-2 flex-wrap">
+          <div>
+            <label for="filterVentasFecha" class="block text-xs font-semibold text-slate-700 mb-1">Fecha de jornada</label>
+            <input id="filterVentasFecha" type="date" autocomplete="off" class="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <button id="btnClearVentasFecha" type="button" disabled class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed">Limpiar fecha</button>
+        </div>
+      </div>
+      <p class="text-xs text-slate-500">Cada jornada incluye los tres turnos: desde las 6:00 a. m. hasta las 6:00 a. m. del día siguiente, hora de Perú.</p>
+
+      <div id="ventasDatePrompt" role="status" class="rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 px-5 py-8 text-center">
+        <p class="text-sm font-semibold text-indigo-900">Selecciona una fecha para ver las operaciones de ese día.</p>
+      </div>
+
+      <div id="ventasDayContent" class="hidden space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p id="ventasSelectedDateLabel" aria-live="polite" class="text-sm font-semibold text-indigo-900"></p>
+          <div class="flex items-center gap-2 flex-wrap">
           <input id="searchVentas" type="text" placeholder="Buscar por N° boleta, producto, fecha..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           <select id="filterVentasTurno" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="all">Todos los turnos</option>
@@ -336,11 +356,11 @@
         </div>
       </div>
 
-      <!-- Formulario Admin: Registrar venta olvidada -->
+      <!-- Formulario Admin: Registrar venta olvidada de cualquier día y turno -->
       <form id="formAdminAddSale" class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
-        <div class="flex items-center justify-between flex-wrap gap-2">
-          <h3 class="text-sm font-bold text-indigo-950">+ Registrar Venta Olvidada</h3>
-          <span class="text-[11px] font-semibold text-indigo-700">Regularización de operaciones de fechas o turnos anteriores</span>
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-indigo-950">+ Registrar Venta Olvidada (Regularización Admin)</h3>
+          <span class="text-[11px] font-semibold text-indigo-700">Registra operaciones pendientes de fechas o turnos anteriores</span>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
           <div>
@@ -373,7 +393,7 @@
             <input id="adminSaleResp" type="text" required placeholder="Responsable de la operación" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             <label id="adminSaleOfferWrap" class="hidden inline-flex items-center gap-1.5 text-xs font-semibold text-amber-900 cursor-pointer">
               <input id="adminSaleIsOffer" type="checkbox" class="rounded text-amber-600 focus:ring-amber-500" />
-              <span>Entregado como Oferta GRATIS (S/ 0.00)</span>
+              <span>Fue Oferta GRATIS (S/ 0.00)</span>
             </label>
           </div>
           <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-sm">
@@ -397,9 +417,10 @@
       </div>
 
       <div id="ventasList" class="space-y-3"></div>
+      </div>
     </div>
 
-    <!-- TAB 4: AUDITORÍA Y RESUMEN ADMIN -->
+    <!-- TAB 4: AUDITORÍA Y RESUMEN ADMIN (SOLO ADMINISTRADOR) -->
     <div id="viewAdmin" class="hidden space-y-6">
       <!-- Ventas por turno -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -421,62 +442,198 @@
         </div>
       </div>
 
-      <!-- Reporte Mensual de Ventas -->
-      <div id="monthlyReportCard" class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
+      <!-- Reporte Mensual de Ventas (Fin de Mes) -->
+      <div id="monthlyReportCard" class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 no-print border-b border-slate-200 pb-4">
           <div>
-            <h2 class="text-base font-bold text-slate-900">Reporte Mensual de Ventas</h2>
-            <p class="text-xs text-slate-500">Consolidado de ventas, unidades despachadas y cortesías por periodo.</p>
+            <span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 mb-1">Cierre Contable y Operativo</span>
+            <h2 class="text-base sm:text-lg font-extrabold text-slate-900">Reporte Mensual Detallado (Fin de Mes)</h2>
+            <p class="text-xs text-slate-500">Consolidado integral de ingresos, turnos, responsables, rotación de los 35 productos, evolución diaria y auditoría de boletas.</p>
           </div>
           <div class="flex items-center gap-2 flex-wrap">
-            <input id="adminReportMonth" type="month" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            <button id="btnLoadMonthlyReport" type="button" class="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold transition">
-              Generar Reporte
+            <input id="adminReportMonth" type="month" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <select id="mrProductFilter" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs sm:text-sm bg-white font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="all">Ver los 35 productos</option>
+              <option value="active">Solo con movimiento</option>
+            </select>
+            <button id="btnLoadMonthlyReport" type="button" class="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold transition shadow-xs">
+              Actualizar Reporte
             </button>
-            <button id="btnPrintMonthlyReport" type="button" class="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition">
+            <button id="btnExportMonthlyCSV" type="button" class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition shadow-xs">
+              Exportar Excel (CSV)
+            </button>
+            <button id="btnPrintMonthlyReport" type="button" class="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition shadow-xs">
               Imprimir / Guardar PDF
             </button>
           </div>
         </div>
 
-        <div id="monthlyReportContent" class="space-y-4">
-          <div class="border-b border-slate-200 pb-2 flex items-center justify-between">
-            <h3 id="monthlyReportTitle" class="text-sm font-extrabold uppercase text-slate-800">Resumen del Mes</h3>
-            <span id="monthlyReportCount" class="text-xs font-semibold text-slate-500">0 ventas</span>
-          </div>
-
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-3">
-              <p class="text-[11px] font-semibold text-indigo-700 uppercase">Total Vendido</p>
-              <p id="mrTotalSoles" class="text-lg font-extrabold text-indigo-950 mt-0.5">S/ 0.00</p>
+        <div id="monthlyReportContent" class="space-y-6">
+          <!-- Encabezado de impresión / estado -->
+          <div class="bg-slate-900 text-white rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p class="text-[11px] uppercase tracking-wider text-amber-400 font-bold">Estado de Resultados e Inventario</p>
+              <h3 id="monthlyReportTitle" class="text-base sm:text-lg font-extrabold uppercase tracking-tight">Resumen del Mes</h3>
             </div>
-            <div class="rounded-lg bg-slate-50 border border-slate-200 p-3">
-              <p class="text-[11px] font-semibold text-slate-600 uppercase">Unidades Vendidas</p>
-              <p id="mrTotalUnits" class="text-lg font-extrabold text-slate-900 mt-0.5">0</p>
-            </div>
-            <div class="rounded-lg bg-amber-50 border border-amber-200 p-3">
-              <p class="text-[11px] font-semibold text-amber-800 uppercase">Ofertas Regaladas</p>
-              <p id="mrTotalOffers" class="text-lg font-extrabold text-amber-900 mt-0.5">0</p>
-            </div>
-            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
-              <p class="text-[11px] font-semibold text-emerald-700 uppercase">Por Turno (M / T / N)</p>
-              <p id="mrByShift" class="text-xs font-bold text-emerald-950 mt-1">S/ 0 / S/ 0 / S/ 0</p>
+            <div class="text-right">
+              <span id="monthlyReportCount" class="inline-block px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs font-bold text-amber-300">0 operaciones</span>
+              <p id="monthlyReportTimestamp" class="text-[11px] text-slate-300 mt-1"></p>
             </div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-xs sm:text-sm">
-              <thead>
-                <tr class="border-b border-slate-200 bg-slate-100 text-xs uppercase text-slate-600">
-                  <th class="py-2 px-3 font-semibold">CD</th>
-                  <th class="py-2 px-3 font-semibold">Producto</th>
-                  <th class="py-2 px-3 font-semibold text-center">Unid. Vendidas</th>
-                  <th class="py-2 px-3 font-semibold text-center">Ofertas Gratis</th>
-                  <th class="py-2 px-3 font-semibold text-right">Total S/</th>
-                </tr>
-              </thead>
-              <tbody id="monthlyReportTableBody" class="divide-y divide-slate-100"></tbody>
-            </table>
+          <!-- 1. 6 KPI Cards Ejecutivos -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div class="rounded-xl bg-indigo-50/80 border border-indigo-200 p-3.5 space-y-1">
+              <p class="text-[11px] font-bold text-indigo-700 uppercase tracking-wide">1. Total Recaudado (S/)</p>
+              <p id="mrTotalSoles" class="text-2xl font-extrabold text-indigo-950">S/ 0.00</p>
+              <p id="mrSubBreakdown" class="text-xs font-medium text-indigo-800">Lubricantes: S/ 0.00 | Ofertas/Otros: S/ 0.00</p>
+            </div>
+            <div class="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-1">
+              <p class="text-[11px] font-bold text-slate-600 uppercase tracking-wide">2. Movimiento de Unidades</p>
+              <p id="mrTotalUnits" class="text-2xl font-extrabold text-slate-900">0 vendidas</p>
+              <p id="mrUnitsEntered" class="text-xs font-medium text-emerald-700">Ingresos / Reposición del mes: +0 und.</p>
+            </div>
+            <div class="rounded-xl bg-amber-50/80 border border-amber-200 p-3.5 space-y-1">
+              <p class="text-[11px] font-bold text-amber-800 uppercase tracking-wide">3. Cortesías / Ofertas Gratis</p>
+              <p id="mrTotalOffers" class="text-2xl font-extrabold text-amber-900">0 und.</p>
+              <p id="mrOffersValorized" class="text-xs font-medium text-amber-800">Valor referencial bonificado: S/ 0.00</p>
+            </div>
+            <div class="rounded-xl bg-emerald-50/80 border border-emerald-200 p-3.5 space-y-1">
+              <p class="text-[11px] font-bold text-emerald-800 uppercase tracking-wide">4. Control de Boletas</p>
+              <p id="mrBoletasStatus" class="text-lg font-extrabold text-emerald-950">0 con boleta / 0 sin boleta</p>
+              <p id="mrDistinctBoletas" class="text-xs font-medium text-emerald-800">0 comprobantes únicos agrupados</p>
+            </div>
+            <div class="rounded-xl bg-purple-50/70 border border-purple-200 p-3.5 space-y-1">
+              <p class="text-[11px] font-bold text-purple-800 uppercase tracking-wide">5. Ticket Promedio y Mejor Día</p>
+              <p id="mrAvgTicket" class="text-lg font-extrabold text-purple-950">Ticket Prom.: S/ 0.00</p>
+              <p id="mrBestDay" class="text-xs font-medium text-purple-800">Mejor día: —</p>
+            </div>
+            <div class="rounded-xl bg-sky-50/80 border border-sky-200 p-3.5 space-y-1">
+              <p class="text-[11px] font-bold text-sky-800 uppercase tracking-wide">6. Producto Líder del Mes</p>
+              <p id="mrTopProdSoles" class="text-xs font-extrabold text-sky-950 truncate">Por ingresos: —</p>
+              <p id="mrTopProdUnits" class="text-xs font-semibold text-sky-800 truncate">Por volumen: —</p>
+            </div>
+          </div>
+
+          <!-- 2. Desglose por Turno y por Responsable -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="border border-slate-200 rounded-xl overflow-hidden">
+              <div class="bg-slate-800 text-white px-3.5 py-2 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                <span>Rendimiento por Turno Operativo</span>
+                <span id="mrByShift" class="text-[11px] font-normal text-slate-300"></span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr class="border-b border-slate-200 bg-slate-100 text-[11px] uppercase text-slate-600">
+                      <th class="py-2 px-3 font-semibold">Turno</th>
+                      <th class="py-2 px-2.5 font-semibold text-center">Operac.</th>
+                      <th class="py-2 px-2.5 font-semibold text-center">Unid. Vend.</th>
+                      <th class="py-2 px-2.5 font-semibold text-center">Cortesías</th>
+                      <th class="py-2 px-3 font-semibold text-right">Recaudado</th>
+                      <th class="py-2 px-2.5 font-semibold text-right">% Mes</th>
+                    </tr>
+                  </thead>
+                  <tbody id="mrShiftTableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="border border-slate-200 rounded-xl overflow-hidden">
+              <div class="bg-slate-800 text-white px-3.5 py-2 text-xs font-bold uppercase tracking-wider">
+                Rendimiento por Responsable / Vendedor
+              </div>
+              <div class="overflow-x-auto mr-scroll-box max-h-60 overflow-y-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead class="sticky top-0 bg-slate-100 z-10">
+                    <tr class="border-b border-slate-200 text-[11px] uppercase text-slate-600">
+                      <th class="py-2 px-3 font-semibold">Responsable</th>
+                      <th class="py-2 px-2.5 font-semibold text-center">Operac.</th>
+                      <th class="py-2 px-2.5 font-semibold text-center">Unid. Vend.</th>
+                      <th class="py-2 px-2.5 font-semibold text-center">Cortesías</th>
+                      <th class="py-2 px-3 font-semibold text-right">Total S/</th>
+                      <th class="py-2 px-2.5 font-semibold text-right">%</th>
+                    </tr>
+                  </thead>
+                  <tbody id="mrRespTableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Movimiento Completo por Producto (35 productos) -->
+          <div class="border border-slate-200 rounded-xl overflow-hidden">
+            <div class="bg-slate-800 text-white px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex flex-wrap items-center justify-between gap-2">
+              <span>Detalle de Rotación, Entradas, Ventas y Valorización por Producto</span>
+              <span class="text-[11px] font-medium text-amber-300">Incluye Lubricantes (A1–A27) y Ofertas/Bebidas (O1–O8)</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="border-b border-slate-200 bg-slate-100 text-[11px] uppercase text-slate-600">
+                    <th class="py-2 px-2.5 font-semibold">CD</th>
+                    <th class="py-2 px-3 font-semibold">Producto</th>
+                    <th class="py-2 px-2.5 font-semibold">Categoría</th>
+                    <th class="py-2 px-2.5 font-semibold text-right">P. Unit.</th>
+                    <th class="py-2 px-2.5 font-semibold text-center">Entradas (+)</th>
+                    <th class="py-2 px-2.5 font-semibold text-center">Unid. Vendidas</th>
+                    <th class="py-2 px-2.5 font-semibold text-center">Ofertas Gratis</th>
+                    <th class="py-2 px-2.5 font-semibold text-center">Stock Actual</th>
+                    <th class="py-2 px-3 font-semibold text-right">Total S/</th>
+                    <th class="py-2 px-2.5 font-semibold text-right">% Ingresos</th>
+                  </tr>
+                </thead>
+                <tbody id="monthlyReportTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 4. Evolución Diaria del Mes (Día por Día) -->
+          <div class="border border-slate-200 rounded-xl overflow-hidden">
+            <div class="bg-slate-800 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider">
+              Resumen Cronológico Diario (Día por Día)
+            </div>
+            <div class="overflow-x-auto mr-scroll-box max-h-72 overflow-y-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead class="sticky top-0 bg-slate-100 z-10">
+                  <tr class="border-b border-slate-200 text-[11px] uppercase text-slate-600">
+                    <th class="py-2 px-3 font-semibold">Fecha</th>
+                    <th class="py-2 px-2.5 font-semibold text-center">Operaciones</th>
+                    <th class="py-2 px-2.5 font-semibold text-right">Turno 1 (Mañana)</th>
+                    <th class="py-2 px-2.5 font-semibold text-right">Turno 2 (Tarde)</th>
+                    <th class="py-2 px-2.5 font-semibold text-right">Turno 3 (Noche)</th>
+                    <th class="py-2 px-2.5 font-semibold text-center">Unid. Vendidas</th>
+                    <th class="py-2 px-2.5 font-semibold text-center">Cortesías</th>
+                    <th class="py-2 px-3 font-semibold text-right">Total Día (S/)</th>
+                  </tr>
+                </thead>
+                <tbody id="mrDailyTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 5. Detalle de Comprobantes / Boletas del Mes -->
+          <div class="border border-slate-200 rounded-xl overflow-hidden">
+            <div class="bg-slate-800 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider flex flex-wrap items-center justify-between gap-2">
+              <span>Relación de Comprobantes / Boletas Registradas en el Mes</span>
+              <span id="mrBoletasTableCount" class="text-[11px] font-medium text-slate-300"></span>
+            </div>
+            <div class="overflow-x-auto mr-scroll-box max-h-80 overflow-y-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead class="sticky top-0 bg-slate-100 z-10">
+                  <tr class="border-b border-slate-200 text-[11px] uppercase text-slate-600">
+                    <th class="py-2 px-3 font-semibold">Fecha y Hora</th>
+                    <th class="py-2 px-2.5 font-semibold">Turno</th>
+                    <th class="py-2 px-2.5 font-semibold">Responsable</th>
+                    <th class="py-2 px-2.5 font-semibold">N° Boleta</th>
+                    <th class="py-2 px-3 font-semibold">Detalle de Productos</th>
+                    <th class="py-2 px-2.5 font-semibold text-center">Modalidad</th>
+                    <th class="py-2 px-3 font-semibold text-right">Importe (S/)</th>
+                  </tr>
+                </thead>
+                <tbody id="mrBoletasTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -485,6 +642,7 @@
       <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div>
           <h2 class="text-base font-bold text-slate-900">Registro de Cambios y Correcciones en Entradas</h2>
+          <p class="text-xs text-slate-500">Historial de modificaciones realizadas sobre los ingresos de stock.</p>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-sm">
@@ -509,6 +667,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 class="text-base font-bold text-slate-900">Modificar Stock Inicial (Turno y Todo el Almacén)</h2>
+            <p class="text-xs text-slate-500">Actualiza las cantidades iniciales del turno o el inventario disponible en almacén.</p>
           </div>
           <div class="flex items-center gap-2 flex-wrap">
             <input id="searchAdminStock" type="text" placeholder="Buscar código o producto..." class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -540,6 +699,7 @@
       <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm max-w-lg space-y-3">
         <div>
           <h2 class="text-base font-bold text-slate-900">Perfil de Administrador — Cambiar Contraseña</h2>
+          <p class="text-xs text-slate-500">Gestiona tu clave de acceso al panel de administración.</p>
         </div>
         <form id="formChangeAdminPass" class="space-y-3">
           <div>
@@ -593,6 +753,7 @@
       <div class="no-print bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-bold text-slate-900">Vista Previa de Hoja de Cierre (Formato Excel / Impresión)</h2>
+          <p class="text-xs text-slate-500">Resumen automático de movimientos y recaudación correspondiente al turno activo.</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <button id="btnPrintSheet" type="button" class="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition">
@@ -1124,6 +1285,25 @@
       }
     }
 
+    async function fetchAllSalesFromSupabase() {
+      const sales = [];
+      let offset = 0;
+      while (true) {
+        const { data, error, count } = await supabaseClient
+          .from('ventas')
+          .select('id, responsable, cliente, total, created_at, turnos(nombre_turno), regalo:productos!ventas_regalo_producto_id_fkey(cd, nombre), venta_detalle(producto_id, cantidad, precio_unitario, productos(cd, nombre))', { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(offset, offset + 499);
+        if (error) return { data: null, error };
+        const page = data || [];
+        sales.push(...page);
+        offset += page.length;
+        if (page.length === 0 || (typeof count === 'number' && offset >= count)) break;
+      }
+      return { data: sales, error: null };
+    }
+
     async function syncFromSupabase() {
       if (!supabaseClient) return;
       try {
@@ -1169,11 +1349,8 @@
           }));
         }
 
-        const { data: vts, error: errV } = await supabaseClient
-          .from('ventas')
-          .select('id, responsable, cliente, total, created_at, turnos(nombre_turno), regalo:productos!ventas_regalo_producto_id_fkey(cd, nombre), venta_detalle(producto_id, cantidad, precio_unitario, productos(cd, nombre))')
-          .order('id', { ascending: false })
-          .limit(60);
+        const { data: vts, error: errV } = await fetchAllSalesFromSupabase();
+        if (errV) throw errV;
         if (!errV && vts) {
           state.ventas = vts.map(v => ({
             id: v.id,
@@ -1324,6 +1501,7 @@
       if (!isAdmin && (tab === 'entradas' || tab === 'ventas' || tab === 'admin')) {
         tab = 'catalogo';
       }
+      if (tab === 'ventas' && state.activeTab !== 'ventas') resetVentasFilters(true);
       state.activeTab = tab;
       document.getElementById('viewCatalogo').classList.toggle('hidden', tab !== 'catalogo');
       document.getElementById('viewEntradas').classList.toggle('hidden', tab !== 'entradas');
@@ -1348,6 +1526,7 @@
               : 'tab-inactive px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 transition whitespace-nowrap');
         }
       }
+      if (tab === 'ventas') renderVentas();
     }
 
     function getOperationalDayDate() {
@@ -1566,7 +1745,7 @@
       );
 
       if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400 text-sm">No hay entradas registradas.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 text-sm">No hay entradas registradas.</td></tr>`;
         return;
       }
 
@@ -1577,7 +1756,6 @@
           <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">+${e.cantidad}</span></td>
           <td class="py-2.5 px-3 text-xs text-slate-600">${e.stockAntes} → <strong class="text-slate-900">${e.stockDespues}</strong></td>
           <td class="py-2.5 px-3 font-semibold text-indigo-700">${e.responsable}</td>
-          <td class="py-2.5 px-3 text-xs text-slate-500">${e.nota || '—'}</td>
           <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1">
             <button data-action="fix-entry" data-id="${e.id}" type="button" class="px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold">
               Corregir
@@ -1620,11 +1798,63 @@
       return offers;
     }
 
+    function getSalesHistoryDayKey(sale) {
+      if (sale.rawDate) {
+        const timestamp = new Date(sale.rawDate).getTime();
+        if (Number.isFinite(timestamp)) {
+          const shifted = new Date(timestamp - 6 * 60 * 60 * 1000);
+          const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit'
+          }).formatToParts(shifted);
+          const value = type => parts.find(p => p.type === type).value;
+          return `${value('year')}-${value('month')}-${value('day')}`;
+        }
+      }
+      const text = String(sale.fecha || '');
+      const date = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+      if (!date) return '';
+      const year = Number(date[3]) + (date[3].length === 2 ? 2000 : 0);
+      const day = new Date(Date.UTC(year, Number(date[2]) - 1, Number(date[1]), 12));
+      const time = text.slice(date[0].length).match(/(\d{1,2}):(\d{2})/);
+      if (time) {
+        let hour = Number(time[1]);
+        const normalized = text.toLowerCase().replace(/[.\s]/g, '');
+        if (normalized.includes('pm') && hour < 12) hour += 12;
+        if (normalized.includes('am') && hour === 12) hour = 0;
+        if (hour < 6) day.setUTCDate(day.getUTCDate() - 1);
+      }
+      return Number.isFinite(day.getTime()) ? day.toISOString().slice(0, 10) : '';
+    }
+
+    function resetVentasFilters(clearDate = false) {
+      if (clearDate) document.getElementById('filterVentasFecha').value = '';
+      document.getElementById('searchVentas').value = '';
+      document.getElementById('filterVentasTurno').value = 'all';
+      document.getElementById('bulkBoletaInput').value = '';
+      selectedSaleIdsForBoleta.clear();
+      updateSelectedCountLabel();
+    }
+
     function renderVentas() {
       const container = document.getElementById('ventasList');
+      const selectedDate = document.getElementById('filterVentasFecha').value;
+      const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(selectedDate);
+      document.getElementById('ventasDayContent').classList.toggle('hidden', !hasDate);
+      document.getElementById('ventasDatePrompt').classList.toggle('hidden', hasDate);
+      document.getElementById('btnClearVentasFecha').disabled = !hasDate;
+      if (!hasDate) {
+        document.getElementById('ventasSelectedDateLabel').textContent = '';
+        container.innerHTML = '';
+        return;
+      }
+      const dateLabel = new Date(`${selectedDate}T12:00:00-05:00`).toLocaleDateString('es-PE', {
+        timeZone: 'America/Lima', day: 'numeric', month: 'long', year: 'numeric'
+      });
+      document.getElementById('ventasSelectedDateLabel').textContent = `Jornada del ${dateLabel}`;
       const turnoFilter = document.getElementById('filterVentasTurno').value;
       const q = (document.getElementById('searchVentas')?.value || '').trim().toLowerCase();
       const list = state.ventas.filter(v => {
+        if (getSalesHistoryDayKey(v) !== selectedDate) return false;
         const matchTurno = turnoFilter === 'all' || v.turno === turnoFilter;
         if (!matchTurno) return false;
         if (!q) return true;
@@ -1638,7 +1868,7 @@
       });
 
       if (list.length === 0) {
-        container.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">No hay operaciones registradas para este filtro.</p>';
+        container.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">No hay operaciones registradas para la fecha y los filtros seleccionados.</p>';
         return;
       }
 
@@ -1646,9 +1876,7 @@
       const boletaGroupMap = new Map();
 
       list.forEach(v => {
-        const dayPart = v.rawDate
-          ? new Date(v.rawDate).toLocaleDateString('es-PE')
-          : String(v.fecha || '').split(',')[0].trim();
+        const dayPart = getSalesHistoryDayKey(v);
         const cleanBoleta = (v.boleta || '').trim().toUpperCase();
         const bKey = cleanBoleta ? `${dayPart}__${cleanBoleta}` : `SINGLE_${v.id}`;
 
@@ -2002,6 +2230,7 @@
           turno: 'Administrador',
           turnoId: null
         };
+        resetVentasFilters(true);
         document.getElementById('loginAdminPass').value = '';
         saveState();
         renderAll();
@@ -2043,6 +2272,8 @@
       state.session.loggedIn = false;
       state.session.responsable = '';
       document.getElementById('loginResponsable').value = '';
+      resetVentasFilters(true);
+      renderVentas();
       saveState();
       renderSession();
     });
@@ -2460,6 +2691,16 @@
     });
 
     document.getElementById('searchEntradas').addEventListener('input', renderEntradasTable);
+    document.getElementById('filterVentasFecha').addEventListener('change', () => {
+      resetVentasFilters();
+      const selectedDate = document.getElementById('filterVentasFecha').value;
+      if (selectedDate) document.getElementById('adminSaleDate').value = selectedDate;
+      renderVentas();
+    });
+    document.getElementById('btnClearVentasFecha').addEventListener('click', () => {
+      resetVentasFilters(true);
+      renderVentas();
+    });
     document.getElementById('filterVentasTurno').addEventListener('change', renderVentas);
     document.getElementById('searchVentas').addEventListener('input', renderVentas);
 
@@ -3042,6 +3283,8 @@
       reportMonthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     }
 
+    let lastMonthlyReportData = null;
+
     async function generateMonthlyReport() {
       const monthVal = document.getElementById('adminReportMonth').value;
       if (!monthVal) return;
@@ -3049,103 +3292,538 @@
       const year = parseInt(yearStr, 10);
       const month = parseInt(monthStr, 10);
       const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-      document.getElementById('monthlyReportTitle').textContent = `Reporte Mensual — ${monthNames[month - 1]} ${year}`;
+      const periodLabel = `${monthNames[month - 1]} ${year}`;
+      document.getElementById('monthlyReportTitle').textContent = `Reporte Mensual — ${periodLabel}`;
+      const tsEl = document.getElementById('monthlyReportTimestamp');
+      if (tsEl) tsEl.textContent = `Generado: ${new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}`;
 
       let salesForMonth = [];
+      let entriesForMonth = [];
 
       if (supabaseClient) {
         try {
           const startISO = new Date(year, month - 1, 1, 0, 0, 0).toISOString();
           const endISO = new Date(year, month, 1, 0, 0, 0).toISOString();
-          const { data, error } = await supabaseClient
-            .from('ventas')
-            .select('id, cliente, total, created_at, turnos(nombre_turno), venta_detalle(producto_id, cantidad, subtotal_linea, productos(cd, nombre))')
-            .gte('created_at', startISO)
-            .lt('created_at', endISO)
-            .order('id', { ascending: true });
-          if (error) throw error;
-          salesForMonth = (data || []).map(v => ({
+          const [vRes, eRes] = await Promise.all([
+            supabaseClient
+              .from('ventas')
+              .select('id, responsable, cliente, total, created_at, turnos(nombre_turno), regalo:productos!ventas_regalo_producto_id_fkey(cd, nombre), venta_detalle(producto_id, cantidad, precio_unitario, subtotal_linea, productos(cd, nombre))')
+              .gte('created_at', startISO)
+              .lt('created_at', endISO)
+              .order('id', { ascending: true }),
+            supabaseClient
+              .from('entradas_stock')
+              .select('id, producto_id, cantidad, responsable, created_at, productos(cd, nombre)')
+              .gte('created_at', startISO)
+              .lt('created_at', endISO)
+              .order('id', { ascending: true })
+          ]);
+          if (vRes.error) throw vRes.error;
+
+          salesForMonth = (vRes.data || []).map(v => ({
             id: v.id,
+            rawDate: v.created_at,
+            fecha: new Date(v.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }),
+            dayKey: new Date(v.created_at).toLocaleDateString('es-PE', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+            responsable: v.responsable || 'SIN NOMBRE',
             cliente: v.cliente || '',
-            total: Number(v.total),
-            turno: v.turnos ? v.turnos.nombre_turno : '',
+            boleta: (v.cliente && v.cliente.includes('Boleta:')) ? v.cliente.split('Boleta:').pop().trim().toUpperCase() : '',
+            total: Number(v.total || 0),
+            turno: v.turnos ? v.turnos.nombre_turno : 'Sin turno',
+            regalo: v.regalo ? `${v.regalo.cd} - ${v.regalo.nombre}` : null,
             items: (v.venta_detalle || []).map(d => ({
               cd: d.productos ? d.productos.cd : '',
               nombre: d.productos ? d.productos.nombre : '',
-              cantidad: d.cantidad,
-              subtotal: Number(d.subtotal_linea || 0)
+              cantidad: Number(d.cantidad || 0),
+              precio: Number(d.precio_unitario || 0),
+              subtotal: Number(d.subtotal_linea !== null && d.subtotal_linea !== undefined ? d.subtotal_linea : (Number(d.precio_unitario || 0) * Number(d.cantidad || 0)))
             }))
           }));
+
+          entriesForMonth = (eRes.data || []).map(e => ({
+            id: e.id,
+            productoId: Number(e.producto_id),
+            cd: e.productos ? e.productos.cd : '',
+            cantidad: Number(e.cantidad || 0)
+          }));
         } catch (err) {
-          showToast('Error al cargar reporte mensual: ' + err.message);
+          showToast('Error al cargar reporte mensual de Supabase: ' + err.message);
           return;
         }
       } else {
-        salesForMonth = state.ventas;
+        salesForMonth = state.ventas.filter(v => {
+          if (!v.rawDate) return true;
+          const d = new Date(v.rawDate);
+          return d.getFullYear() === year && (d.getMonth() + 1) === month;
+        }).map(v => ({
+          ...v,
+          dayKey: v.rawDate ? new Date(v.rawDate).toLocaleDateString('es-PE', { year: 'numeric', month: '2-digit', day: '2-digit' }) : (v.fecha || '').split(',')[0]
+        }));
+        entriesForMonth = state.entradas;
       }
 
-      let totalSoles = 0, totalUnits = 0, totalOffers = 0;
-      let mSoles = 0, tSoles = 0, nSoles = 0;
+      // Inicializar mapa con los 35 productos del catálogo
       const byProd = {};
+      state.products.forEach(p => {
+        byProd[p.cd] = {
+          id: p.id,
+          cd: p.cd,
+          nombre: p.nombre,
+          categoria: p.categoria,
+          precio: Number(p.precio || 0),
+          stockActual: Number(p.stock || 0),
+          entradas: 0,
+          units: 0,
+          offers: 0,
+          soles: 0
+        };
+      });
+
+      let totalEnteredUnits = 0;
+      entriesForMonth.forEach(e => {
+        const prod = state.products.find(p => p.id === Number(e.productoId) || p.cd === e.cd);
+        const cd = prod ? prod.cd : e.cd;
+        const qty = Number(e.cantidad || 0);
+        totalEnteredUnits += qty;
+        if (cd && byProd[cd]) {
+          byProd[cd].entradas += qty;
+        }
+      });
+
+      let totalSoles = 0, lubSoles = 0, offerCatSoles = 0;
+      let totalUnits = 0, totalOffers = 0, totalOffersValorized = 0;
+      let opsWithBoleta = 0, opsWithoutBoleta = 0, paidOperationsCount = 0;
+      const distinctBoletasSet = new Set();
+
+      const shiftStats = {
+        'Turno Mañana (1)': { ops: 0, units: 0, offers: 0, soles: 0 },
+        'Turno Tarde (2)': { ops: 0, units: 0, offers: 0, soles: 0 },
+        'Turno Noche (3)': { ops: 0, units: 0, offers: 0, soles: 0 }
+      };
+      const respStats = {};
+      const dailyStats = {};
 
       salesForMonth.forEach(v => {
-        totalSoles += v.total;
-        if (v.turno === 'Turno Mañana (1)') mSoles += v.total;
-        else if (v.turno === 'Turno Tarde (2)') tSoles += v.total;
-        else if (v.turno === 'Turno Noche (3)') nSoles += v.total;
+        const amt = Number(v.total || 0);
+        totalSoles += amt;
+        if (amt > 0) paidOperationsCount++;
 
-        if (v.cliente && v.cliente.startsWith('OFERTA GRATIS')) {
-          const m = v.cliente.match(/\((O\d+)\s*x(\d+)\)/i);
-          if (m) {
-            const cd = m[1].toUpperCase();
-            const q = parseInt(m[2], 10) || 1;
-            totalOffers += q;
-            const pObj = state.products.find(p => p.cd === cd);
-            if (!byProd[cd]) byProd[cd] = { cd, nombre: pObj ? pObj.nombre : cd, units: 0, offers: 0, soles: 0 };
-            byProd[cd].offers += q;
-          }
+        const cleanBol = (v.boleta || '').trim().toUpperCase();
+        if (cleanBol) {
+          opsWithBoleta++;
+          distinctBoletasSet.add(cleanBol);
+        } else {
+          opsWithoutBoleta++;
         }
 
+        const shName = shiftStats[v.turno] ? v.turno : 'Turno Mañana (1)';
+        shiftStats[shName].ops += 1;
+        shiftStats[shName].soles += amt;
+
+        const rName = (v.responsable || 'SIN NOMBRE').trim().toUpperCase();
+        if (!respStats[rName]) respStats[rName] = { responsable: rName, ops: 0, units: 0, offers: 0, soles: 0 };
+        respStats[rName].ops += 1;
+        respStats[rName].soles += amt;
+
+        const dKey = v.dayKey || 'Sin fecha';
+        if (!dailyStats[dKey]) {
+          dailyStats[dKey] = { fecha: dKey, ops: 0, s1: 0, s2: 0, s3: 0, units: 0, offers: 0, total: 0 };
+        }
+        dailyStats[dKey].ops += 1;
+        dailyStats[dKey].total += amt;
+        if (shName === 'Turno Mañana (1)') dailyStats[dKey].s1 += amt;
+        else if (shName === 'Turno Tarde (2)') dailyStats[dKey].s2 += amt;
+        else dailyStats[dKey].s3 += amt;
+
+        // Ofertas gratis en la operación
+        const freeItems = parseFreeOfferItemsFromSale(v);
+        freeItems.forEach(f => {
+          const cd = f.cd.toUpperCase();
+          const q = Number(f.cantidad || 1);
+          totalOffers += q;
+          shiftStats[shName].offers += q;
+          respStats[rName].offers += q;
+          dailyStats[dKey].offers += q;
+
+          const pObj = state.products.find(p => p.cd === cd);
+          const refPrice = pObj ? Number(pObj.precio || 1) : 1;
+          totalOffersValorized += (q * refPrice);
+
+          if (!byProd[cd]) {
+            byProd[cd] = { id: 999, cd, nombre: pObj ? pObj.nombre : cd, categoria: 'Ofertas', precio: refPrice, stockActual: pObj ? pObj.stock : 0, entradas: 0, units: 0, offers: 0, soles: 0 };
+          }
+          byProd[cd].offers += q;
+        });
+
+        // Ítems vendidos pagados
         (v.items || []).forEach(it => {
-          totalUnits += it.cantidad;
-          const lineTotal = it.subtotal !== undefined ? it.subtotal : (it.precio * it.cantidad);
-          if (!byProd[it.cd]) byProd[it.cd] = { cd: it.cd, nombre: it.nombre, units: 0, offers: 0, soles: 0 };
-          byProd[it.cd].units += it.cantidad;
-          byProd[it.cd].soles += lineTotal;
+          const q = Number(it.cantidad || 0);
+          const lineTotal = it.subtotal !== undefined ? Number(it.subtotal) : (Number(it.precio || 0) * q);
+          totalUnits += q;
+          shiftStats[shName].units += q;
+          respStats[rName].units += q;
+          dailyStats[dKey].units += q;
+
+          const cd = (it.cd || '').toUpperCase();
+          const pObj = state.products.find(p => p.cd === cd);
+          const isOfferCat = /^O\d+$/i.test(cd) || (pObj && pObj.categoria === 'Ofertas');
+          if (isOfferCat) offerCatSoles += lineTotal;
+          else lubSoles += lineTotal;
+
+          if (cd) {
+            if (!byProd[cd]) {
+              byProd[cd] = { id: 999, cd, nombre: it.nombre || cd, categoria: isOfferCat ? 'Ofertas' : 'Lubricantes y Aditivos', precio: Number(it.precio || 0), stockActual: pObj ? pObj.stock : 0, entradas: 0, units: 0, offers: 0, soles: 0 };
+            }
+            byProd[cd].units += q;
+            byProd[cd].soles += lineTotal;
+          }
         });
       });
 
+      // Actualizar 6 KPI Cards Ejecutivos
       document.getElementById('monthlyReportCount').textContent = `${salesForMonth.length} operación(es)`;
       document.getElementById('mrTotalSoles').textContent = formatMoney(totalSoles);
-      document.getElementById('mrTotalUnits').textContent = totalUnits;
-      document.getElementById('mrTotalOffers').textContent = totalOffers;
-      document.getElementById('mrByShift').textContent = `${formatMoney(mSoles)} / ${formatMoney(tSoles)} / ${formatMoney(nSoles)}`;
+      document.getElementById('mrSubBreakdown').textContent = `Lubricantes: ${formatMoney(lubSoles)} | Ofertas/Otros: ${formatMoney(offerCatSoles)}`;
 
-      const rows = Object.values(byProd).sort((a, b) => b.soles - a.soles);
-      const tbody = document.getElementById('monthlyReportTableBody');
-      if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">No hay operaciones registradas en este periodo.</td></tr>';
-      } else {
-        tbody.innerHTML = rows.map(r => `
-          <tr>
-            <td class="py-2 px-3 font-mono text-xs font-bold text-slate-600">${r.cd}</td>
-            <td class="py-2 px-3 font-medium text-slate-900">${r.nombre}</td>
-            <td class="py-2 px-3 text-center font-semibold">${r.units}</td>
-            <td class="py-2 px-3 text-center font-semibold text-amber-700">${r.offers}</td>
-            <td class="py-2 px-3 text-right font-bold text-slate-900">${formatMoney(r.soles)}</td>
-          </tr>
-        `).join('') + `
-          <tr class="bg-slate-100 font-extrabold">
-            <td colspan="2" class="py-2 px-3 text-right">TOTAL DEL MES</td>
-            <td class="py-2 px-3 text-center">${totalUnits}</td>
-            <td class="py-2 px-3 text-center text-amber-800">${totalOffers}</td>
-            <td class="py-2 px-3 text-right text-indigo-700">${formatMoney(totalSoles)}</td>
+      document.getElementById('mrTotalUnits').textContent = `${totalUnits} vendidas`;
+      document.getElementById('mrUnitsEntered').textContent = `Ingresos / Reposición del mes: +${totalEnteredUnits} und.`;
+
+      document.getElementById('mrTotalOffers').textContent = `${totalOffers} und.`;
+      document.getElementById('mrOffersValorized').textContent = `Valor referencial bonificado: ${formatMoney(totalOffersValorized)}`;
+
+      document.getElementById('mrBoletasStatus').textContent = `${opsWithBoleta} con boleta / ${opsWithoutBoleta} sin boleta`;
+      document.getElementById('mrDistinctBoletas').textContent = `${distinctBoletasSet.size} comprobantes únicos registrados`;
+
+      const avgTicket = paidOperationsCount > 0 ? (totalSoles / paidOperationsCount) : 0;
+      document.getElementById('mrAvgTicket').textContent = `Ticket Prom.: ${formatMoney(avgTicket)}`;
+
+      const dailyList = Object.values(dailyStats);
+      const bestDayObj = dailyList.length > 0 ? [...dailyList].sort((a, b) => b.total - a.total)[0] : null;
+      document.getElementById('mrBestDay').textContent = bestDayObj && bestDayObj.total > 0
+        ? `Mejor día: ${bestDayObj.fecha} (${formatMoney(bestDayObj.total)})`
+        : 'Mejor día: Sin ventas aún';
+
+      const allProdArr = Object.values(byProd);
+      const topBySoles = [...allProdArr].sort((a, b) => b.soles - a.soles)[0];
+      const topByUnits = [...allProdArr].sort((a, b) => b.units - a.units)[0];
+      document.getElementById('mrTopProdSoles').textContent = (topBySoles && topBySoles.soles > 0)
+        ? `Ingresos: [${topBySoles.cd}] ${topBySoles.nombre} (${formatMoney(topBySoles.soles)})`
+        : 'Por ingresos: Sin ventas';
+      document.getElementById('mrTopProdUnits').textContent = (topByUnits && topByUnits.units > 0)
+        ? `Volumen: [${topByUnits.cd}] ${topByUnits.nombre} (${topByUnits.units} und.)`
+        : 'Por volumen: Sin ventas';
+
+      const mSoles = shiftStats['Turno Mañana (1)'].soles;
+      const tSoles = shiftStats['Turno Tarde (2)'].soles;
+      const nSoles = shiftStats['Turno Noche (3)'].soles;
+      document.getElementById('mrByShift').textContent = `M: ${formatMoney(mSoles)} | T: ${formatMoney(tSoles)} | N: ${formatMoney(nSoles)}`;
+
+      // Tabla 1A: Rendimiento por Turno
+      const shiftOrder = ['Turno Mañana (1)', 'Turno Tarde (2)', 'Turno Noche (3)'];
+      document.getElementById('mrShiftTableBody').innerHTML = shiftOrder.map(sh => {
+        const st = shiftStats[sh];
+        const pct = totalSoles > 0 ? ((st.soles / totalSoles) * 100).toFixed(1) + '%' : '0.0%';
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2 px-3 font-semibold text-slate-900">${sh}</td>
+            <td class="py-2 px-2.5 text-center font-medium">${st.ops}</td>
+            <td class="py-2 px-2.5 text-center font-semibold text-indigo-700">${st.units}</td>
+            <td class="py-2 px-2.5 text-center font-semibold text-amber-700">${st.offers}</td>
+            <td class="py-2 px-3 text-right font-bold text-slate-900">${formatMoney(st.soles)}</td>
+            <td class="py-2 px-2.5 text-right text-slate-500 font-semibold">${pct}</td>
           </tr>
         `;
+      }).join('') + `
+        <tr class="bg-slate-100 font-extrabold border-t border-slate-300">
+          <td class="py-2 px-3">TOTAL TURNOS</td>
+          <td class="py-2 px-2.5 text-center">${salesForMonth.length}</td>
+          <td class="py-2 px-2.5 text-center text-indigo-700">${totalUnits}</td>
+          <td class="py-2 px-2.5 text-center text-amber-800">${totalOffers}</td>
+          <td class="py-2 px-3 text-right text-indigo-700">${formatMoney(totalSoles)}</td>
+          <td class="py-2 px-2.5 text-right">100%</td>
+        </tr>
+      `;
+
+      // Tabla 1B: Rendimiento por Responsable
+      const respRows = Object.values(respStats).sort((a, b) => b.soles - a.soles);
+      const respTbody = document.getElementById('mrRespTableBody');
+      if (respRows.length === 0) {
+        respTbody.innerHTML = '<tr><td colspan="6" class="py-5 text-center text-slate-400">Sin registros en este mes.</td></tr>';
+      } else {
+        respTbody.innerHTML = respRows.map(r => {
+          const pct = totalSoles > 0 ? ((r.soles / totalSoles) * 100).toFixed(1) + '%' : '0.0%';
+          return `
+            <tr class="hover:bg-slate-50">
+              <td class="py-2 px-3 font-bold text-indigo-700">${r.responsable}</td>
+              <td class="py-2 px-2.5 text-center">${r.ops}</td>
+              <td class="py-2 px-2.5 text-center font-semibold">${r.units}</td>
+              <td class="py-2 px-2.5 text-center font-semibold text-amber-700">${r.offers}</td>
+              <td class="py-2 px-3 text-right font-bold text-slate-900">${formatMoney(r.soles)}</td>
+              <td class="py-2 px-2.5 text-right text-slate-500 font-semibold">${pct}</td>
+            </tr>
+          `;
+        }).join('');
       }
+
+      // Tabla 2: Detalle de los 35 Productos (con filtro Todo vs Con movimiento)
+      const filterMode = document.getElementById('mrProductFilter')?.value || 'all';
+      const filteredProds = allProdArr.filter(r => {
+        if (filterMode === 'active') return (r.entradas > 0 || r.units > 0 || r.offers > 0 || r.soles > 0);
+        return true;
+      });
+
+      const lubRows = filteredProds.filter(r => !/^O\d+$/i.test(r.cd) && r.categoria !== 'Ofertas');
+      const offRows = filteredProds.filter(r => /^O\d+$/i.test(r.cd) || r.categoria === 'Ofertas');
+
+      const buildProdRowHtml = (r) => {
+        const pct = totalSoles > 0 ? ((r.soles / totalSoles) * 100).toFixed(1) + '%' : '0.0%';
+        const hasActivity = r.units > 0 || r.offers > 0 || r.entradas > 0;
+        return `
+          <tr class="hover:bg-slate-50 ${hasActivity ? '' : 'text-slate-400'}">
+            <td class="py-1.5 px-2.5 font-mono text-xs font-bold text-slate-700">${r.cd}</td>
+            <td class="py-1.5 px-3 font-medium text-slate-900">${r.nombre}</td>
+            <td class="py-1.5 px-2.5 text-[11px] text-slate-500">${r.categoria}</td>
+            <td class="py-1.5 px-2.5 text-right">${formatMoney(r.precio)}</td>
+            <td class="py-1.5 px-2.5 text-center font-semibold ${r.entradas > 0 ? 'text-emerald-700' : ''}">${r.entradas > 0 ? '+' + r.entradas : '0'}</td>
+            <td class="py-1.5 px-2.5 text-center font-bold ${r.units > 0 ? 'text-indigo-700 bg-indigo-50/60' : ''}">${r.units}</td>
+            <td class="py-1.5 px-2.5 text-center font-bold ${r.offers > 0 ? 'text-amber-800 bg-amber-50' : ''}">${r.offers}</td>
+            <td class="py-1.5 px-2.5 text-center font-semibold ${r.stockActual === 0 ? 'text-rose-600' : 'text-slate-700'}">${r.stockActual}</td>
+            <td class="py-1.5 px-3 text-right font-bold text-slate-900">${formatMoney(r.soles)}</td>
+            <td class="py-1.5 px-2.5 text-right text-[11px] font-semibold text-slate-500">${pct}</td>
+          </tr>
+        `;
+      };
+
+      const lubEnt = lubRows.reduce((a, b) => a + b.entradas, 0);
+      const lubUni = lubRows.reduce((a, b) => a + b.units, 0);
+      const lubSol = lubRows.reduce((a, b) => a + b.soles, 0);
+
+      const offEnt = offRows.reduce((a, b) => a + b.entradas, 0);
+      const offUni = offRows.reduce((a, b) => a + b.units, 0);
+      const offOf = offRows.reduce((a, b) => a + b.offers, 0);
+      const offSol = offRows.reduce((a, b) => a + b.soles, 0);
+
+      const prodTbody = document.getElementById('monthlyReportTableBody');
+      if (filteredProds.length === 0) {
+        prodTbody.innerHTML = '<tr><td colspan="10" class="py-6 text-center text-slate-400">No hay productos con movimiento en este mes.</td></tr>';
+      } else {
+        prodTbody.innerHTML =
+          (lubRows.length > 0 ? `
+            <tr class="bg-slate-200/70 text-[11px] font-extrabold uppercase text-slate-800">
+              <td colspan="10" class="py-1.5 px-3">Sección A: Lubricantes y Aditivos (A1 – A27)</td>
+            </tr>
+            ${lubRows.map(buildProdRowHtml).join('')}
+            <tr class="bg-slate-100 font-bold border-t border-slate-300 text-slate-800">
+              <td colspan="4" class="py-1.5 px-3 text-right">SUBTOTAL LUBRICANTES</td>
+              <td class="py-1.5 px-2.5 text-center text-emerald-700">+${lubEnt}</td>
+              <td class="py-1.5 px-2.5 text-center text-indigo-700">${lubUni}</td>
+              <td class="py-1.5 px-2.5 text-center">0</td>
+              <td class="py-1.5 px-2.5 text-center">—</td>
+              <td class="py-1.5 px-3 text-right">${formatMoney(lubSol)}</td>
+              <td class="py-1.5 px-2.5 text-right">${totalSoles > 0 ? ((lubSol / totalSoles) * 100).toFixed(1) + '%' : '0.0%'}</td>
+            </tr>
+          ` : '') +
+          (offRows.length > 0 ? `
+            <tr class="bg-amber-100/80 text-[11px] font-extrabold uppercase text-amber-950">
+              <td colspan="10" class="py-1.5 px-3">Sección B: Aguas, Gaseosas, Ofertas y Otros (O1 – O8)</td>
+            </tr>
+            ${offRows.map(buildProdRowHtml).join('')}
+            <tr class="bg-amber-50/90 font-bold border-t border-amber-200 text-amber-950">
+              <td colspan="4" class="py-1.5 px-3 text-right">SUBTOTAL OFERTAS Y BEBIDAS</td>
+              <td class="py-1.5 px-2.5 text-center text-emerald-700">+${offEnt}</td>
+              <td class="py-1.5 px-2.5 text-center text-indigo-700">${offUni}</td>
+              <td class="py-1.5 px-2.5 text-center text-amber-800">${offOf}</td>
+              <td class="py-1.5 px-2.5 text-center">—</td>
+              <td class="py-1.5 px-3 text-right">${formatMoney(offSol)}</td>
+              <td class="py-1.5 px-2.5 text-right">${totalSoles > 0 ? ((offSol / totalSoles) * 100).toFixed(1) + '%' : '0.0%'}</td>
+            </tr>
+          ` : '') +
+          `
+            <tr class="bg-slate-900 text-white font-extrabold text-xs">
+              <td colspan="4" class="py-2.5 px-3 text-right">TOTAL GENERAL DEL MES (${periodLabel.toUpperCase()})</td>
+              <td class="py-2.5 px-2.5 text-center text-emerald-300">+${totalEnteredUnits}</td>
+              <td class="py-2.5 px-2.5 text-center text-amber-300">${totalUnits}</td>
+              <td class="py-2.5 px-2.5 text-center text-amber-300">${totalOffers}</td>
+              <td class="py-2.5 px-2.5 text-center">${state.products.reduce((a, p) => a + p.stock, 0)}</td>
+              <td class="py-2.5 px-3 text-right text-amber-300">${formatMoney(totalSoles)}</td>
+              <td class="py-2.5 px-2.5 text-right">100%</td>
+            </tr>
+          `;
+      }
+
+      // Tabla 3: Resumen Cronológico Diario
+      const dailyTbody = document.getElementById('mrDailyTableBody');
+      if (dailyList.length === 0) {
+        dailyTbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-slate-400">No hay días con actividad en este mes.</td></tr>';
+      } else {
+        dailyTbody.innerHTML = dailyList.map(d => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2 px-3 font-mono font-bold text-slate-800">${d.fecha}</td>
+            <td class="py-2 px-2.5 text-center font-medium">${d.ops}</td>
+            <td class="py-2 px-2.5 text-right text-slate-700">${formatMoney(d.s1)}</td>
+            <td class="py-2 px-2.5 text-right text-slate-700">${formatMoney(d.s2)}</td>
+            <td class="py-2 px-2.5 text-right text-slate-700">${formatMoney(d.s3)}</td>
+            <td class="py-2 px-2.5 text-center font-semibold text-indigo-700">${d.units}</td>
+            <td class="py-2 px-2.5 text-center font-semibold text-amber-700">${d.offers}</td>
+            <td class="py-2 px-3 text-right font-extrabold text-slate-900 bg-slate-50">${formatMoney(d.total)}</td>
+          </tr>
+        `).join('');
+      }
+
+      // Tabla 4: Relación Agrupada de Comprobantes / Boletas del Mes
+      const groupedBoletas = [];
+      const bMap = new Map();
+      salesForMonth.forEach(v => {
+        const cleanBol = (v.boleta || '').trim().toUpperCase();
+        const bKey = cleanBol ? `${v.dayKey}__${cleanBol}` : `SINGLE_${v.id}`;
+        const paidItems = (v.items || []).map(i => ({ ...i }));
+        const offerItems = parseFreeOfferItemsFromSale(v);
+
+        if (cleanBol && bMap.has(bKey)) {
+          const g = bMap.get(bKey);
+          g.ids.push(v.id);
+          g.total += Number(v.total || 0);
+          g.paidItems.push(...paidItems);
+          g.offerItems.push(...offerItems);
+        } else {
+          const g = {
+            ids: [v.id],
+            fecha: v.fecha,
+            turno: v.turno,
+            responsable: v.responsable,
+            boleta: cleanBol,
+            total: Number(v.total || 0),
+            paidItems,
+            offerItems
+          };
+          groupedBoletas.push(g);
+          if (cleanBol) bMap.set(bKey, g);
+        }
+      });
+
+      document.getElementById('mrBoletasTableCount').textContent = `${groupedBoletas.length} comprobante(s) / registro(s)`;
+      const boletasTbody = document.getElementById('mrBoletasTableBody');
+      if (groupedBoletas.length === 0) {
+        boletasTbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">Sin comprobantes registrados en este periodo.</td></tr>';
+      } else {
+        boletasTbody.innerHTML = groupedBoletas.slice().reverse().map(g => {
+          const itemCounts = new Map();
+          g.paidItems.forEach(i => {
+            const k = `[${i.cd}] ${i.nombre}`;
+            itemCounts.set(k, (itemCounts.get(k) || 0) + Number(i.cantidad || 1));
+          });
+          const offCounts = new Map();
+          g.offerItems.forEach(o => {
+            const k = `[${o.cd}] ${o.nombre} (GRATIS)`;
+            offCounts.set(k, (offCounts.get(k) || 0) + Number(o.cantidad || 1));
+          });
+
+          const detailsArr = [
+            ...[...itemCounts.entries()].map(([k, q]) => `${k} x${q}`),
+            ...[...offCounts.entries()].map(([k, q]) => `<span class="text-amber-800 font-semibold">${k} x${q}</span>`)
+          ];
+
+          const hasPaid = g.paidItems.length > 0;
+          const hasOff = g.offerItems.length > 0;
+          const modBadge = (hasPaid && hasOff)
+            ? '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px]">Venta + Cortesía</span>'
+            : (!hasPaid && hasOff)
+              ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">Solo Cortesía</span>'
+              : '<span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold text-[10px]">Venta Normal</span>';
+
+          return `
+            <tr class="hover:bg-slate-50">
+              <td class="py-2 px-3 text-slate-600 whitespace-nowrap">${g.fecha}</td>
+              <td class="py-2 px-2.5 text-slate-700 font-medium">${g.turno}</td>
+              <td class="py-2 px-2.5 font-semibold text-indigo-700">${g.responsable}</td>
+              <td class="py-2 px-2.5 font-mono font-bold ${g.boleta ? 'text-emerald-700' : 'text-rose-600'}">${g.boleta || 'SIN BOLETA'}</td>
+              <td class="py-2 px-3 text-slate-800">${detailsArr.join(', ') || '—'}</td>
+              <td class="py-2 px-2.5 text-center">${modBadge}</td>
+              <td class="py-2 px-3 text-right font-bold text-slate-900 whitespace-nowrap">${formatMoney(g.total)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      lastMonthlyReportData = {
+        periodLabel,
+        monthVal,
+        totalSoles,
+        lubSoles,
+        offerCatSoles,
+        totalUnits,
+        totalEnteredUnits,
+        totalOffers,
+        totalOffersValorized,
+        opsWithBoleta,
+        opsWithoutBoleta,
+        allProdArr,
+        shiftOrder,
+        shiftStats,
+        respRows,
+        dailyList,
+        groupedBoletas
+      };
+    }
+
+    function exportMonthlyReportCSV() {
+      if (!lastMonthlyReportData) {
+        showToast('Primero genera el reporte del mes');
+        return;
+      }
+      const d = lastMonthlyReportData;
+      const lines = [];
+      const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
+      lines.push([esc(`REPORTE MENSUAL DETALLADO - ${d.periodLabel.toUpperCase()}`)].join(','));
+      lines.push([esc('Total Recaudado (S/)'), esc(d.totalSoles.toFixed(2)), esc('Unidades Vendidas'), esc(d.totalUnits), esc('Cortesias Gratis'), esc(d.totalOffers)].join(','));
+      lines.push([]);
+
+      lines.push([esc('1. RENDIMIENTO POR TURNO')].join(','));
+      lines.push(['Turno', 'Operaciones', 'Unid. Vendidas', 'Cortesias', 'Total S/'].map(esc).join(','));
+      d.shiftOrder.forEach(sh => {
+        const st = d.shiftStats[sh];
+        lines.push([sh, st.ops, st.units, st.offers, st.soles.toFixed(2)].map(esc).join(','));
+      });
+      lines.push([]);
+
+      lines.push([esc('2. RENDIMIENTO POR RESPONSABLE')].join(','));
+      lines.push(['Responsable', 'Operaciones', 'Unid. Vendidas', 'Cortesias', 'Total S/'].map(esc).join(','));
+      d.respRows.forEach(r => {
+        lines.push([r.responsable, r.ops, r.units, r.offers, r.soles.toFixed(2)].map(esc).join(','));
+      });
+      lines.push([]);
+
+      lines.push([esc('3. DETALLE DE LOS 35 PRODUCTOS')].join(','));
+      lines.push(['CD', 'Producto', 'Categoria', 'P. Unitario', 'Entradas Mes (+)', 'Unid. Vendidas', 'Ofertas Gratis', 'Stock Actual', 'Total S/'].map(esc).join(','));
+      d.allProdArr.forEach(p => {
+        lines.push([p.cd, p.nombre, p.categoria, p.precio.toFixed(2), p.entradas, p.units, p.offers, p.stockActual, p.soles.toFixed(2)].map(esc).join(','));
+      });
+      lines.push([]);
+
+      lines.push([esc('4. RESUMEN DIARIO DEL MES')].join(','));
+      lines.push(['Fecha', 'Operaciones', 'Turno 1 (S/)', 'Turno 2 (S/)', 'Turno 3 (S/)', 'Unid. Vendidas', 'Cortesias', 'Total Dia (S/)'].map(esc).join(','));
+      d.dailyList.forEach(day => {
+        lines.push([day.fecha, day.ops, day.s1.toFixed(2), day.s2.toFixed(2), day.s3.toFixed(2), day.units, day.offers, day.total.toFixed(2)].map(esc).join(','));
+      });
+
+      const csvContent = '\uFEFF' + lines.join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_Mensual_${d.monthVal}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Reporte exportado en formato Excel (CSV)');
     }
 
     document.getElementById('btnLoadMonthlyReport').addEventListener('click', generateMonthlyReport);
+    document.getElementById('adminReportMonth').addEventListener('change', generateMonthlyReport);
+    document.getElementById('mrProductFilter').addEventListener('change', generateMonthlyReport);
+    document.getElementById('btnExportMonthlyCSV').addEventListener('click', exportMonthlyReportCSV);
     document.getElementById('btnPrintMonthlyReport').addEventListener('click', async () => {
       await generateMonthlyReport();
       document.body.classList.add('printing-monthly-report');
@@ -3278,7 +3956,7 @@
       state.session = currentSession;
       saveState();
       renderAll();
-      showToast('Catálogo base restablecido');
+      showToast('Catálogo base de 35 productos restablecido');
     });
 
     loadState();
