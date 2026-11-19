@@ -26,6 +26,7 @@
       body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
       header, #kpiStrip, .no-print, #toast, #loginOverlay, #modalProduct, #modalSupabase, #modalFixEntry, #modalSellConfirm, #modalDeleteSale, #modalPendingBoletas, #modalEditBoleta { display: none !important; }
       main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+      body:not(.printing-monthly-report) main > div:not(#viewCierre) { display: none !important; }
       body:not(.printing-monthly-report) #viewCierre { display: block !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; }
       body.printing-monthly-report #viewCierre { display: none !important; }
       body.printing-monthly-report #viewAdmin { display: block !important; }
@@ -146,8 +147,8 @@
         <button id="btnSwitchShift" type="button" class="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
           Salir / Cambiar
         </button>
-        <button id="btnResetDemo" type="button" class="superadmin-only hidden inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
-          Restablecer Lista
+        <button id="btnOpenHistoricalClosing" type="button" class="admin-only hidden inline-flex items-center px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white text-xs sm:text-sm font-semibold transition">
+          Imprimir cierre por fecha
         </button>
       </div>
     </div>
@@ -750,10 +751,33 @@
 
     <!-- TAB 5: VISTA EXCEL / IMPRIMIR CIERRE DE CAJA -->
     <div id="viewCierre" class="hidden space-y-4">
+      <form id="formHistoricalClosing" class="admin-only hidden no-print bg-indigo-50 rounded-xl border border-indigo-200 p-4 space-y-3">
+        <div>
+          <h2 class="text-base font-bold text-indigo-950">Consultar e imprimir cierre por fecha y turno</h2>
+          <p class="text-xs text-indigo-800 mt-1">Elige la fecha de jornada. El turno 3 incluye la madrugada del día siguiente hasta las 6:00 a. m., hora de Perú.</p>
+        </div>
+        <div class="flex flex-wrap items-end gap-3">
+          <div>
+            <label for="closingDate" class="block text-xs font-semibold text-slate-700 mb-1">Fecha de jornada</label>
+            <input id="closingDate" type="date" required class="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label for="closingShift" class="block text-xs font-semibold text-slate-700 mb-1">Turno</label>
+            <select id="closingShift" required class="px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Selecciona un turno</option>
+              <option value="1">Turno 1: Mañana (6 a. m. – 2 p. m.)</option>
+              <option value="2">Turno 2: Tarde (2 p. m. – 10 p. m.)</option>
+              <option value="3">Turno 3: Noche (10 p. m. – 6 a. m.)</option>
+            </select>
+          </div>
+          <button id="btnLoadHistoricalClosing" type="submit" class="px-4 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white text-sm font-semibold transition">Ver cierre</button>
+        </div>
+        <p id="historicalClosingStatus" role="status" aria-live="polite" class="text-xs font-medium text-indigo-900">Selecciona una fecha y un turno para consultar su cierre.</p>
+      </form>
       <div class="no-print bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-bold text-slate-900">Vista Previa de Hoja de Cierre (Formato Excel / Impresión)</h2>
-          <p class="text-xs text-slate-500">Resumen automático de movimientos y recaudación correspondiente al turno activo.</p>
+          <p id="closingViewDescription" class="text-xs text-slate-500">Resumen automático de movimientos y recaudación correspondiente al turno activo.</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <button id="btnPrintSheet" type="button" class="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition">
@@ -770,6 +794,7 @@
           CIERRE DE CAJA - LUBRICANTES Y OFERTAS
         </div>
 
+        <p id="sheetClosingContext" class="hidden text-[10px] text-slate-600"></p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs border border-slate-400 p-3 bg-slate-50">
           <div class="space-y-1">
             <div><span class="font-bold">FECHA:</span> <span id="sheetFecha" class="text-indigo-800 font-semibold"></span></div>
@@ -797,6 +822,7 @@
                   <th class="border border-slate-700 py-1.5 px-2">INICIAL</th>
                   <th class="border border-slate-700 py-1.5 px-2">REPOSICIÓN</th>
                   <th class="border border-slate-700 py-1.5 px-2">VENTA</th>
+                  <th class="closing-adjustment hidden border border-slate-700 py-1.5 px-2">AJUSTE</th>
                   <th class="border border-slate-700 py-1.5 px-2">FINAL</th>
                   <th class="border border-slate-700 py-1.5 px-2">IMPORTE</th>
                 </tr>
@@ -819,6 +845,7 @@
                   <th class="border border-slate-700 py-1.5 px-2">REPOSICIÓN</th>
                   <th class="border border-slate-700 py-1.5 px-2">VENTA</th>
                   <th class="border border-slate-700 py-1.5 px-2">OFERTA</th>
+                  <th class="closing-adjustment hidden border border-slate-700 py-1.5 px-2">AJUSTE</th>
                   <th class="border border-slate-700 py-1.5 px-2">FINAL</th>
                   <th class="border border-slate-700 py-1.5 px-2">IMPORTE</th>
                 </tr>
@@ -2081,20 +2108,292 @@
       renderAdminStockTable();
     }
 
+    let historicalClosingReport = null;
+    let historicalClosingRequest = 0;
+    const closingShiftNames = ['', 'Turno Mañana (1)', 'Turno Tarde (2)', 'Turno Noche (3)'];
+
+    function canConsultHistoricalClosing() {
+      return state.session.loggedIn && ['admin', 'superadmin'].includes(state.session.role);
+    }
+
+    function closingShiftNumber(name) {
+      const match = String(name || '').match(/\(([123])\)/);
+      return match ? Number(match[1]) : 0;
+    }
+
+    function closingShiftByTime(record) {
+      const timestamp = new Date(record.rawDate || '');
+      let hour = NaN;
+      if (Number.isFinite(timestamp.getTime())) {
+        hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Lima', hour: '2-digit', hourCycle: 'h23' }).format(timestamp));
+      } else {
+        const text = String(record.fecha || '');
+        const match = text.match(/(\d{1,2}):(\d{2})/);
+        if (match) hour = Number(match[1]);
+        const normalized = text.toLowerCase().replace(/[.\s]/g, '');
+        if (normalized.includes('pm') && hour < 12) hour += 12;
+        if (normalized.includes('am') && hour === 12) hour = 0;
+      }
+      return Number.isFinite(hour) && hour >= 0 && hour < 24
+        ? (hour >= 6 && hour < 14 ? 1 : hour >= 14 && hour < 22 ? 2 : 3) : 0;
+    }
+
+    function invalidateHistoricalClosing(clearSelection = false) {
+      historicalClosingRequest++;
+      historicalClosingReport = null;
+      if (clearSelection) {
+        document.getElementById('closingDate').value = '';
+        document.getElementById('closingShift').value = '';
+      }
+      document.getElementById('historicalClosingStatus').textContent = 'Selecciona una fecha y un turno para consultar su cierre.';
+      document.getElementById('btnLoadHistoricalClosing').disabled = false;
+      renderCierreSheet();
+    }
+
+    async function fetchClosingRows(table, selection = '*') {
+      const rows = [];
+      let expectedCount = null;
+      for (;;) {
+        const { data, error, count } = await supabaseClient.from(table)
+          .select(selection, { count: 'exact' })
+          .order('id', { ascending: true }).range(rows.length, rows.length + 499);
+        if (error) throw error;
+        if (expectedCount !== null && count !== null && count !== expectedCount) {
+          throw new Error('Los registros cambiaron durante la consulta. Vuelve a consultar el cierre.');
+        }
+        if (count !== null) expectedCount = count;
+        if (!data || !data.length) {
+          if (expectedCount !== null && rows.length < expectedCount) throw new Error('No se pudo recuperar el historial completo.');
+          break;
+        }
+        rows.push(...data);
+        if (expectedCount !== null && rows.length >= expectedCount) break;
+      }
+      return rows;
+    }
+
+    async function readHistoricalClosingSnapshot() {
+      if (!supabaseClient) {
+        return {
+          products: JSON.parse(JSON.stringify(state.products)),
+          sales: JSON.parse(JSON.stringify(state.ventas)),
+          entries: JSON.parse(JSON.stringify(state.entradas)),
+          turns: [], audits: JSON.parse(JSON.stringify(state.auditoria)), local: true
+        };
+      }
+      const productFields = 'id, cd, nombre, categoria, precio, stock, updated_at';
+      const before = await fetchClosingRows('productos', productFields);
+      const [sales, entries, turns, audits] = await Promise.all([
+        fetchClosingRows('ventas', 'id, responsable, cliente, total, created_at, turnos(nombre_turno), regalo:productos!ventas_regalo_producto_id_fkey(cd, nombre), venta_detalle(producto_id, cantidad, precio_unitario, subtotal_linea, productos(cd, nombre))'),
+        fetchClosingRows('entradas_stock', 'id, producto_id, cantidad, responsable, created_at, turnos(nombre_turno)'),
+        fetchClosingRows('turnos'),
+        fetchClosingRows('auditoria_cambios')
+      ]);
+      const after = await fetchClosingRows('productos', productFields);
+      if (JSON.stringify(before) !== JSON.stringify(after)) {
+        throw new Error('El stock cambió durante la consulta. Vuelve a consultar para obtener un cierre actualizado.');
+      }
+      return {
+        products: after.map(p => ({ ...p, precio: Number(p.precio), stock: Number(p.stock) })),
+        sales: sales.map(v => ({
+          ...v, rawDate: v.created_at, turno: v.turnos?.nombre_turno || '',
+          regalo: v.regalo ? `${v.regalo.cd} - ${v.regalo.nombre}` : null,
+          items: (v.venta_detalle || []).map(d => ({
+            id: d.producto_id, cd: d.productos?.cd || '', cantidad: Number(d.cantidad),
+            precio: Number(d.precio_unitario), subtotal: Number(d.subtotal_linea ?? Number(d.cantidad) * Number(d.precio_unitario))
+          }))
+        })),
+        entries: entries.map(e => ({ ...e, rawDate: e.created_at, productoId: e.producto_id, turno: e.turnos?.nombre_turno || '' })),
+        turns, audits, local: false
+      };
+    }
+
+    function buildHistoricalClosing(snapshot, date, shift) {
+      const today = getSalesHistoryDayKey({ rawDate: new Date().toISOString() });
+      const parsed = new Date(`${date}T12:00:00Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date || date > today || !closingShiftNames[shift]) {
+        throw new Error('Selecciona una fecha válida y un turno. No se permiten fechas futuras.');
+      }
+      const target = `${date}::${shift}`;
+      const byId = new Map(snapshot.products.map(p => [String(p.id), p]));
+      const byCd = new Map(snapshot.products.map(p => [p.cd, p]));
+      const counters = {};
+      snapshot.products.forEach(p => {
+        counters[p.id] = { inicial: 0, reposicion: 0, venta: 0, oferta: 0, ajuste: 0, importe: 0, final: Number(p.stock), laterNet: 0 };
+      });
+      const names = new Set();
+      let operations = 0, total = 0, estimated = false, inferredShift = false;
+      function addName(value) {
+        const name = String(value || '').trim().replace(/\s+/g, ' ').toUpperCase();
+        if (name && !/NO CONSIGNAD|SIN RESPONSABLE|RECONSTRUCCI[OÓ]N|ESTIMAD/.test(name) && !['ADMIN', 'ADMINISTRADOR', 'SUPERADMIN', 'SISTEMA', 'USUARIO', 'PENDIENTE', 'SIN DATOS', 'SIN NOMBRE'].includes(name)) names.add(name);
+      }
+      function movementKey(record) {
+        const day = getSalesHistoryDayKey(record);
+        if (!day) throw new Error('Hay movimientos sin fecha válida. Revisa sus fechas antes de imprimir un cierre histórico.');
+        let number = closingShiftNumber(record.turno);
+        if (day >= date && !number) {
+          number = closingShiftByTime(record);
+          if (!number) throw new Error('Hay movimientos sin turno ni hora identificables desde la fecha elegida. Revisa sus datos antes de reconstruir los saldos.');
+          inferredShift = true;
+        }
+        return `${day}::${number}`;
+      }
+      function apply(product, key, field, quantity, amount = 0) {
+        if (!product) throw new Error('Hay movimientos cuyo producto no está identificado en el catálogo.');
+        const c = counters[product.id];
+        const signed = (field === 'reposicion' || field === 'ajuste') ? quantity : -quantity;
+        if (key > target) c.laterNet += signed;
+        if (key === target) {
+          c[field] += quantity;
+          c.importe += amount;
+        }
+      }
+      snapshot.sales.forEach(sale => {
+        const key = movementKey(sale);
+        if (key < target) return;
+        let detailTotal = 0;
+        (sale.items || []).forEach(item => {
+          const amount = Number(item.subtotal ?? Number(item.cantidad) * Number(item.precio));
+          detailTotal += amount;
+          apply(byId.get(String(item.id)) || byCd.get(item.cd), key, 'venta', Number(item.cantidad), amount);
+        });
+        // La cortesía independiente puede estar codificada también en regalo en copias locales.
+        // Ese doble registro representa una sola salida física.
+        const encoded = String(sale.cliente || '').match(/^OFERTA GRATIS\s*\(\s*(O\d+)\s*x\s*(\d+)\s*\)/i);
+        if (encoded) {
+          apply(byCd.get(encoded[1].toUpperCase()), key, 'oferta', Number(encoded[2]));
+        } else if (sale.regalo) {
+          const code = String(sale.regalo).split(' - ')[0].trim().toUpperCase();
+          const quantity = String(sale.regalo).match(/\(x(\d+)\)/i);
+          apply(byCd.get(code), key, 'oferta', quantity ? Number(quantity[1]) : 1);
+        }
+        if (key === target) {
+          if (Math.abs(Math.round(detailTotal * 100) - Math.round(Number(sale.total || 0) * 100)) > 1) {
+            throw new Error(`La venta #${sale.id} no coincide con sus detalles. Revísala antes de imprimir el cierre.`);
+          }
+          total += Math.round(Number(sale.total || 0) * 100);
+          operations++;
+          addName(sale.responsable);
+          if (/RECONSTRUCCI[OÓ]N ESTIMADA|ESTIMAD/i.test(sale.cliente || '')) estimated = true;
+        }
+      });
+      snapshot.entries.forEach(entry => {
+        const key = movementKey(entry);
+        if (key < target) return;
+        apply(byId.get(String(entry.productoId)), key, 'reposicion', Number(entry.cantidad));
+        if (key === target) { operations++; addName(entry.responsable); }
+      });
+      // Las correcciones de entradas ya están incluidas en su cantidad corregida.
+      // Solo los ajustes directos de almacén son un movimiento adicional.
+      (snapshot.audits || []).filter(a => a.motivo === 'Ajuste de stock en almacén').forEach(a => {
+        const record = { rawDate: a.created_at || a.rawDate, fecha: a.fecha };
+        const timestamp = new Date(record.rawDate || '');
+        let hour;
+        if (Number.isFinite(timestamp.getTime())) {
+          hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Lima', hour: '2-digit', hourCycle: 'h23' }).format(timestamp));
+        } else {
+          const match = String(a.fecha || '').match(/(\d{1,2}):(\d{2})/);
+          hour = match ? Number(match[1]) : NaN;
+          const text = String(a.fecha || '').toLowerCase().replace(/[.\s]/g, '');
+          if (text.includes('pm') && hour < 12) hour += 12;
+          if (text.includes('am') && hour === 12) hour = 0;
+        }
+        if (!Number.isFinite(hour)) throw new Error('Hay un ajuste de almacén sin hora válida. Revisa su fecha antes de reconstruir el cierre.');
+        record.turno = closingShiftNames[hour >= 6 && hour < 14 ? 1 : hour >= 14 && hour < 22 ? 2 : 3];
+        const key = movementKey(record);
+        if (key < target) return;
+        const code = String(a.productoNombre || '').split(' — ')[0];
+        apply(byId.get(String(a.producto_id)) || byCd.get(code), key, 'ajuste', Number(a.diferencia));
+        if (key === target) { operations++; addName(a.modificado_por || a.modificadoPor); }
+      });
+      function turnDay(turn) {
+        if (String(turn.observaciones || '').startsWith('LHIST_')) {
+          try {
+            const metadata = JSON.parse(turn.observaciones.slice(turn.observaciones.indexOf('|') + 1));
+            if (/^\d{4}-\d{2}-\d{2}$/.test(metadata.fecha_jornada)) return metadata.fecha_jornada;
+          } catch (err) { /* Se conserva la fecha de inicio registrada. */ }
+        }
+        return getSalesHistoryDayKey({ rawDate: turn.fecha_inicio });
+      }
+      const turns = (snapshot.turns || []).filter(t => turnDay(t) === date && (Number(t.numero_turno) || closingShiftNumber(t.nombre_turno)) === shift);
+      turns.forEach(t => addName(t.responsable));
+      if (!operations && !turns.length) throw new Error('No hay registros para esa fecha y ese turno. Selecciona otra combinación.');
+      snapshot.products.forEach(p => {
+        const c = counters[p.id];
+        c.final -= c.laterNet;
+        c.inicial = c.final - c.reposicion - c.ajuste + c.venta + c.oferta;
+        if (c.inicial < 0 || c.final < 0) throw new Error(`El saldo histórico de ${p.cd} resulta negativo. Revisa sus movimientos antes de imprimir el cierre.`);
+      });
+      const observations = [...new Set(turns.map(t => String(t.observaciones || '').trim())
+        .filter(text => text && !text.startsWith('LHIST_') && text !== 'Regularización Admin'))].join('\n');
+      return {
+        date, shift, products: snapshot.products, counters, total: total / 100,
+        responsable: [...names].join(' / ') || 'No consignado', observations, operations, estimated, inferredShift,
+        status: turns.length ? (turns.every(t => t.estado === 'cerrado') ? 'Turno registrado como cerrado' : 'Turno con sesiones abiertas; resumen a la hora de consulta') : 'Resumen de movimientos registrados',
+        generatedAt: new Date().toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' }),
+        local: snapshot.local
+      };
+    }
+
+    async function loadHistoricalClosing(event) {
+      event.preventDefault();
+      if (!canConsultHistoricalClosing()) return;
+      invalidateHistoricalClosing();
+      const request = historicalClosingRequest;
+      const date = document.getElementById('closingDate').value;
+      const shift = Number(document.getElementById('closingShift').value);
+      const status = document.getElementById('historicalClosingStatus');
+      const button = document.getElementById('btnLoadHistoricalClosing');
+      button.disabled = true;
+      status.textContent = 'Consultando ventas, cortesías, reposiciones y responsables…';
+      try {
+        const snapshot = await readHistoricalClosingSnapshot();
+        if (request !== historicalClosingRequest || !canConsultHistoricalClosing()) return;
+        historicalClosingReport = buildHistoricalClosing(snapshot, date, shift);
+        renderCierreSheet();
+        status.textContent = `Cierre consultado: ${historicalClosingReport.operations} movimiento(s). Revisa la hoja y pulsa «Imprimir / Guardar PDF».`;
+      } catch (err) {
+        if (request !== historicalClosingRequest) return;
+        historicalClosingReport = null;
+        status.textContent = err.message || 'No se pudo consultar el cierre. Inténtalo nuevamente.';
+        renderCierreSheet();
+      } finally {
+        if (request === historicalClosingRequest) button.disabled = false;
+      }
+    }
+
     function renderCierreSheet() {
+      const isAdmin = ['admin', 'superadmin'].includes(state.session.role);
+      const report = isAdmin && canConsultHistoricalClosing() ? historicalClosingReport : null;
+      document.getElementById('closingDate').max = getSalesHistoryDayKey({ rawDate: new Date().toISOString() });
+      document.getElementById('printableSheet').classList.toggle('hidden', isAdmin && !report);
+      document.getElementById('btnPrintSheet').disabled = isAdmin && !report;
+      document.getElementById('btnPrintSheet').classList.toggle('opacity-50', isAdmin && !report);
+      document.getElementById('btnCloseShift').classList.toggle('hidden', isAdmin);
+      document.getElementById('closingViewDescription').textContent = isAdmin
+        ? 'Consulta la fecha y el turno elegidos. Puedes imprimirlos o guardarlos como PDF.'
+        : 'Resumen automático de movimientos y recaudación correspondiente al turno activo.';
+      document.getElementById('sheetObservaciones').readOnly = isAdmin;
+      document.getElementById('sheetClosingContext').classList.toggle('hidden', !report);
+      if (isAdmin && !report) return;
+      const products = report ? report.products : state.products;
+      const counters = report ? report.counters : getActiveShiftCounters();
+      const hasAdjustments = !!report && Object.values(counters).some(c => c.ajuste !== 0);
+      document.querySelectorAll('.closing-adjustment').forEach(el => el.classList.toggle('hidden', !hasAdjustments));
+      const adjustmentCell = c => hasAdjustments ? `<td class="border border-slate-400 py-1 px-2">${c.ajuste > 0 ? '+' : ''}${c.ajuste}</td>` : '';
       const lubBody = document.getElementById('sheetLubricantesBody');
       const ofBody = document.getElementById('sheetOfertasBody');
-      const lubs = state.products.filter(p => p.categoria !== 'Ofertas');
-      const offs = state.products.filter(p => p.categoria === 'Ofertas');
+      const lubs = products.filter(p => p.categoria !== 'Ofertas');
+      const offs = products.filter(p => p.categoria === 'Ofertas');
 
       let totalLub = 0, totalOf = 0, totalUnidVendidas = 0, totalOfertasRegaladas = 0;
 
       lubBody.innerHTML = lubs.map(p => {
-        const c = getActiveShiftCounters()[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
-        const imp = c.venta * p.precio;
+        const c = counters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
+        const imp = report ? c.importe : c.venta * p.precio;
         totalLub += imp;
         totalUnidVendidas += c.venta;
-        const finalStock = computeShiftFinal(c, p.stock);
+        const finalStock = report ? c.final : computeShiftFinal(c, p.stock);
         const zeroCls = c.inicial === 0 ? 'bg-rose-100/70' : '';
         const finalCls = finalStock === 0 ? 'bg-rose-100/70' : '';
         const ventaCls = c.venta > 0 ? 'bg-teal-100 font-bold' : '';
@@ -2106,24 +2405,25 @@
             <td class="border border-slate-400 py-1 px-2 ${zeroCls}">${c.inicial}</td>
             <td class="border border-slate-400 py-1 px-2">${c.reposicion}</td>
             <td class="border border-slate-400 py-1 px-2 ${ventaCls}">${c.venta}</td>
+            ${adjustmentCell(c)}
             <td class="border border-slate-400 py-1 px-2 ${finalCls}">${finalStock}</td>
             <td class="border border-slate-400 py-1 px-2 text-right font-semibold">${imp > 0 ? formatMoney(imp) : 'S/ -'}</td>
           </tr>
         `;
       }).join('') + `
         <tr class="font-extrabold bg-slate-100">
-          <td colspan="7" class="border border-slate-400 py-1.5 px-2 text-right">TOTAL LUBRICANTES</td>
+          <td colspan="${hasAdjustments ? 8 : 7}" class="border border-slate-400 py-1.5 px-2 text-right">TOTAL LUBRICANTES</td>
           <td class="border border-slate-400 py-1.5 px-2 text-right">${formatMoney(totalLub)}</td>
         </tr>
       `;
 
       ofBody.innerHTML = offs.map(p => {
-        const c = getActiveShiftCounters()[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
-        const imp = c.venta * p.precio;
+        const c = counters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
+        const imp = report ? c.importe : c.venta * p.precio;
         totalOf += imp;
         totalUnidVendidas += c.venta;
         totalOfertasRegaladas += c.oferta;
-        const finalStock = computeShiftFinal(c, p.stock);
+        const finalStock = report ? c.final : computeShiftFinal(c, p.stock);
         const zeroCls = c.inicial === 0 ? 'bg-rose-100/70' : '';
         const finalCls = finalStock === 0 ? 'bg-rose-100/70' : '';
         const ventaCls = c.venta > 0 ? 'bg-teal-100 font-bold' : '';
@@ -2137,22 +2437,27 @@
             <td class="border border-slate-400 py-1 px-2">${c.reposicion}</td>
             <td class="border border-slate-400 py-1 px-2 ${ventaCls}">${c.venta}</td>
             <td class="border border-slate-400 py-1 px-2 ${ofertaCls}">${c.oferta}</td>
+            ${adjustmentCell(c)}
             <td class="border border-slate-400 py-1 px-2 ${finalCls}">${finalStock}</td>
             <td class="border border-slate-400 py-1 px-2 text-right font-semibold">${imp > 0 ? formatMoney(imp) : 'S/ -'}</td>
           </tr>
         `;
       }).join('') + `
         <tr class="font-extrabold bg-slate-100">
-          <td colspan="8" class="border border-slate-400 py-1.5 px-2 text-right">TOTAL OFERTAS</td>
+          <td colspan="${hasAdjustments ? 9 : 8}" class="border border-slate-400 py-1.5 px-2 text-right">TOTAL OFERTAS</td>
           <td class="border border-slate-400 py-1.5 px-2 text-right">${formatMoney(totalOf)}</td>
         </tr>
       `;
 
-      const grandTotal = totalLub + totalOf;
-      const fechaStr = new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const grandTotal = report ? report.total : totalLub + totalOf;
+      const fechaStr = (report ? new Date(`${report.date}T12:00:00-05:00`) : new Date()).toLocaleDateString('es-PE', { timeZone: 'America/Lima', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       document.getElementById('sheetFecha').textContent = fechaStr;
-      document.getElementById('sheetTurno').textContent = state.session.turno;
-      document.getElementById('sheetResponsable').textContent = state.session.responsable;
+      document.getElementById('sheetTurno').textContent = report ? closingShiftNames[report.shift] : state.session.turno;
+      document.getElementById('sheetResponsable').textContent = report ? report.responsable : state.session.responsable;
+      if (report) {
+        document.getElementById('sheetObservaciones').value = report.observations;
+        document.getElementById('sheetClosingContext').textContent = `${report.status}. Consulta: ${report.generatedAt} (Perú). Saldos reconstruidos desde el stock actual y los movimientos registrados; importes según los precios de cada venta, precio mostrado de referencia. ${report.local ? 'Datos guardados en este dispositivo. ' : ''}${report.estimated ? 'Incluye operaciones históricas identificadas como estimadas. ' : ''}${report.inferredShift ? 'Los movimientos sin turno vinculado se ubicaron según su hora registrada. ' : ''}La consulta e impresión no modifican el stock ni el estado del turno.`;
+      }
       document.getElementById('sheetTotalVentas').textContent = formatMoney(grandTotal);
       document.getElementById('sheetUnidVendidas').textContent = totalUnidVendidas;
       document.getElementById('sheetOfertasRegaladas').textContent = totalOfertasRegaladas;
@@ -2231,6 +2536,7 @@
           turnoId: null
         };
         resetVentasFilters(true);
+        invalidateHistoricalClosing(true);
         document.getElementById('loginAdminPass').value = '';
         saveState();
         renderAll();
@@ -2273,6 +2579,8 @@
       state.session.responsable = '';
       document.getElementById('loginResponsable').value = '';
       resetVentasFilters(true);
+      invalidateHistoricalClosing(true);
+      document.getElementById('sheetObservaciones').value = '';
       renderVentas();
       saveState();
       renderSession();
@@ -2318,7 +2626,29 @@
     document.getElementById('tabBtnCierre').addEventListener('click', () => { renderCierreSheet(); setTab('cierre'); });
     document.getElementById('btnGoCierre').addEventListener('click', () => { renderCierreSheet(); setTab('cierre'); });
 
-    document.getElementById('btnPrintSheet').addEventListener('click', () => window.print());
+    document.getElementById('btnOpenHistoricalClosing').addEventListener('click', () => {
+      if (!canConsultHistoricalClosing()) return;
+      invalidateHistoricalClosing(true);
+      setTab('cierre');
+      document.getElementById('closingDate').focus();
+    });
+    document.getElementById('formHistoricalClosing').addEventListener('submit', loadHistoricalClosing);
+    ['closingDate', 'closingShift'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => invalidateHistoricalClosing());
+      document.getElementById(id).addEventListener('change', () => invalidateHistoricalClosing());
+    });
+    document.getElementById('btnPrintSheet').addEventListener('click', () => {
+      if (['admin', 'superadmin'].includes(state.session.role)) {
+        if (!canConsultHistoricalClosing() || !historicalClosingReport || historicalClosingReport.date !== document.getElementById('closingDate').value || historicalClosingReport.shift !== Number(document.getElementById('closingShift').value)) {
+          showToast('Primero consulta la fecha y el turno que deseas imprimir.');
+          return;
+        }
+      }
+      setTab('cierre');
+      renderCierreSheet();
+      document.body.classList.remove('printing-monthly-report');
+      window.print();
+    });
     const modalPendingBoletas = document.getElementById('modalPendingBoletas');
 
     async function executeCloseShift() {
@@ -2366,10 +2696,7 @@
     }
 
     document.getElementById('btnCloseShift').addEventListener('click', async () => {
-      if (state.session.role === 'superadmin') {
-        await executeCloseShift();
-        return;
-      }
+      if (state.session.role !== 'usuario') return;
       if (supabaseClient) await syncFromSupabase();
       const pending = getPendingShiftSales();
       if (pending.length === 0) {
@@ -3948,15 +4275,6 @@
       saveState();
       renderAll();
       showToast(`Operación regularizada (${shiftVal})`);
-    });
-
-    document.getElementById('btnResetDemo').addEventListener('click', () => {
-      const currentSession = state.session;
-      state = cloneDefaults();
-      state.session = currentSession;
-      saveState();
-      renderAll();
-      showToast('Catálogo base de 35 productos restablecido');
     });
 
     loadState();
