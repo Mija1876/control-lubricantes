@@ -1334,6 +1334,7 @@
     async function syncFromSupabase() {
       if (!supabaseClient) return;
       try {
+        await ensureActiveShiftReportDate();
         const { data: prods, error: errP } = await supabaseClient
           .from('productos')
           .select('id, cd, nombre, categoria, precio, stock, es_oferta_gratis')
@@ -1572,6 +1573,44 @@
       const d = getOperationalDayDate();
       const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 6, 0, 0, 0);
       return start.toISOString();
+    }
+
+    function getActiveShiftReportDayKey() {
+      const session = state.session;
+      if (!session.loggedIn || session.role !== 'usuario') {
+        return getSalesHistoryDayKey({ rawDate: new Date().toISOString() });
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(session.fechaJornada || '')) return session.fechaJornada;
+      if (session.fechaInicio) {
+        const day = getSalesHistoryDayKey({ rawDate: session.fechaInicio });
+        if (day) return day;
+      }
+      // Un turno vinculado debe recuperar su apertura real, aunque siga abierto después de las 6 a. m.
+      if (session.turnoId) return '';
+      const ids = new Set(state.shiftSaleIds || []);
+      const firstSale = state.ventas.filter(v => ids.has(v.id) && v.turno === session.turno && v.responsable === session.responsable && v.rawDate)
+        .sort((a, b) => new Date(a.rawDate) - new Date(b.rawDate))[0];
+      return getSalesHistoryDayKey(firstSale || { rawDate: new Date().toISOString() });
+    }
+
+    async function ensureActiveShiftReportDate() {
+      const session = state.session;
+      if (!session.loggedIn || session.role !== 'usuario') return;
+      if (getActiveShiftReportDayKey() && (session.fechaJornada || session.fechaInicio)) return;
+      if (session.turnoId) {
+        if (!supabaseClient) throw new Error('Conecta Supabase para recuperar la fecha de apertura de este turno.');
+        const { data, error } = await supabaseClient.from('turnos')
+          .select('id, fecha_inicio').eq('id', session.turnoId).single();
+        if (error) throw error;
+        const day = data && getSalesHistoryDayKey({ rawDate: data.fecha_inicio });
+        if (!day) throw new Error('No se pudo recuperar una fecha de apertura válida para este turno.');
+        if (state.session !== session || !session.loggedIn) return;
+        session.fechaInicio = data.fecha_inicio;
+        session.fechaJornada = day;
+      } else {
+        session.fechaJornada = getActiveShiftReportDayKey();
+      }
+      saveState();
     }
 
     function getClosedShiftsToday() {
@@ -2450,7 +2489,10 @@
       `;
 
       const grandTotal = report ? report.total : totalLub + totalOf;
-      const fechaStr = (report ? new Date(`${report.date}T12:00:00-05:00`) : new Date()).toLocaleDateString('es-PE', { timeZone: 'America/Lima', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const sheetDayKey = report ? report.date : getActiveShiftReportDayKey();
+      const fechaStr = sheetDayKey
+        ? new Date(`${sheetDayKey}T12:00:00-05:00`).toLocaleDateString('es-PE', { timeZone: 'America/Lima', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+        : 'Consultando fecha de apertura del turno…';
       document.getElementById('sheetFecha').textContent = fechaStr;
       document.getElementById('sheetTurno').textContent = report ? closingShiftNames[report.shift] : state.session.turno;
       document.getElementById('sheetResponsable').textContent = report ? report.responsable : state.session.responsable;
@@ -2551,22 +2593,27 @@
       }
       const numTurno = selectedLoginShift.includes('1') ? 1 : selectedLoginShift.includes('2') ? 2 : 3;
       let turnoId = null;
+      let fechaInicio = new Date().toISOString();
 
       if (supabaseClient) {
         try {
           const { data, error } = await supabaseClient
             .from('turnos')
             .insert({ numero_turno: numTurno, nombre_turno: selectedLoginShift, responsable: resp, estado: 'abierto' })
-            .select('id')
+            .select('id, fecha_inicio')
             .single();
           if (error) throw error;
           turnoId = data.id;
+          if (getSalesHistoryDayKey({ rawDate: data.fecha_inicio })) fechaInicio = data.fecha_inicio;
         } catch (err) {
           showToast('No se pudo abrir turno en Supabase: ' + err.message);
         }
       }
 
-      state.session = { loggedIn: true, role: 'usuario', responsable: resp, turno: selectedLoginShift, turnoId };
+      state.session = {
+        loggedIn: true, role: 'usuario', responsable: resp, turno: selectedLoginShift, turnoId,
+        fechaInicio, fechaJornada: getSalesHistoryDayKey({ rawDate: fechaInicio })
+      };
       getActiveShiftCounters(selectedLoginShift);
       document.getElementById('entradaResponsable').value = resp;
       saveState();
@@ -2623,8 +2670,17 @@
     document.getElementById('tabBtnEntradas').addEventListener('click', () => setTab('entradas'));
     document.getElementById('tabBtnVentas').addEventListener('click', () => setTab('ventas'));
     document.getElementById('tabBtnAdmin').addEventListener('click', () => { renderAdminAudit(); setTab('admin'); });
-    document.getElementById('tabBtnCierre').addEventListener('click', () => { renderCierreSheet(); setTab('cierre'); });
-    document.getElementById('btnGoCierre').addEventListener('click', () => { renderCierreSheet(); setTab('cierre'); });
+    async function openCierreView() {
+      setTab('cierre');
+      try {
+        await ensureActiveShiftReportDate();
+      } catch (err) {
+        showToast('No se pudo recuperar la fecha del turno: ' + err.message);
+      }
+      renderCierreSheet();
+    }
+    document.getElementById('tabBtnCierre').addEventListener('click', openCierreView);
+    document.getElementById('btnGoCierre').addEventListener('click', openCierreView);
 
     document.getElementById('btnOpenHistoricalClosing').addEventListener('click', () => {
       if (!canConsultHistoricalClosing()) return;
@@ -2637,7 +2693,14 @@
       document.getElementById(id).addEventListener('input', () => invalidateHistoricalClosing());
       document.getElementById(id).addEventListener('change', () => invalidateHistoricalClosing());
     });
-    document.getElementById('btnPrintSheet').addEventListener('click', () => {
+    document.getElementById('btnPrintSheet').addEventListener('click', async () => {
+      if (!state.session.loggedIn) return;
+      try {
+        await ensureActiveShiftReportDate();
+      } catch (err) {
+        showToast('No se pudo recuperar la fecha del turno: ' + err.message);
+        return;
+      }
       if (['admin', 'superadmin'].includes(state.session.role)) {
         if (!canConsultHistoricalClosing() || !historicalClosingReport || historicalClosingReport.date !== document.getElementById('closingDate').value || historicalClosingReport.shift !== Number(document.getElementById('closingShift').value)) {
           showToast('Primero consulta la fecha y el turno que deseas imprimir.');
@@ -2652,6 +2715,12 @@
     const modalPendingBoletas = document.getElementById('modalPendingBoletas');
 
     async function executeCloseShift() {
+      try {
+        await ensureActiveShiftReportDate();
+      } catch (err) {
+        showToast('No se pudo recuperar la fecha del turno: ' + err.message);
+        return;
+      }
       if (supabaseClient && state.session.turnoId) {
         try {
           const obs = document.getElementById('sheetObservaciones').value.trim();
@@ -2662,12 +2731,7 @@
         } catch (err) {}
       }
       if (state.session.role === 'usuario' && state.session.turno) {
-        const nowHr = new Date().getHours();
-        let targetKey = getOperationalDayKey();
-        if (state.session.turno === 'Turno Noche (3)' && nowHr < 14) {
-          const prevD = new Date(getOperationalDayDate().getTime() - 24 * 60 * 60 * 1000);
-          targetKey = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, '0')}-${String(prevD.getDate()).padStart(2, '0')}`;
-        }
+        const targetKey = getActiveShiftReportDayKey();
         if (!state.closedShiftsByDay) state.closedShiftsByDay = {};
         const arr = state.closedShiftsByDay[targetKey] || [];
         if (!arr.includes(state.session.turno)) arr.push(state.session.turno);
