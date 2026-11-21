@@ -389,6 +389,15 @@
             <input id="adminSaleBoleta" type="text" placeholder="Serie - Número" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
         </div>
+        <div id="adminSalePaymentWrap" class="hidden rounded-lg border border-indigo-200 bg-white p-3 space-y-2">
+          <label for="adminSalePayment" class="block text-xs font-bold text-indigo-950">Forma de pago del panetón</label>
+          <select id="adminSalePayment" class="w-full sm:w-auto px-3 py-2 rounded-lg border border-slate-300 text-sm">
+            <option value="">Selecciona la forma de pago</option>
+            <option value="YAPE">Yape — S/ 18.90 por unidad</option>
+            <option value="OTRO">Otro medio de pago — S/ 19.90 por unidad</option>
+          </select>
+          <p id="adminSalePaymentInfo" class="text-xs font-semibold text-indigo-900"></p>
+        </div>
         <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div class="flex items-center gap-3 flex-wrap">
             <input id="adminSaleResp" type="text" required placeholder="Responsable de la operación" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -891,6 +900,15 @@
           <span>Precio unitario: <strong id="sellModalUnitPrice" class="text-slate-900">S/ 0.00</strong></span>
           <span>Stock disponible: <strong id="sellModalAvailStock" class="text-emerald-700">0</strong></span>
         </div>
+      </div>
+
+      <div id="sellModalPaymentWrap" class="hidden rounded-xl border border-indigo-200 bg-indigo-50 p-3 space-y-2">
+        <label for="sellModalPayment" class="block text-xs font-bold text-indigo-950">Forma de pago del panetón</label>
+        <select id="sellModalPayment" class="w-full px-3 py-2 rounded-lg border border-indigo-300 bg-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="">Selecciona la forma de pago</option>
+          <option value="YAPE">Yape — S/ 18.90 por unidad</option>
+          <option value="OTRO">Otro medio de pago — S/ 19.90 por unidad</option>
+        </select>
       </div>
 
       <div id="sellModalOfferChoice" class="hidden space-y-2">
@@ -1458,7 +1476,7 @@
 
         const { data: dayVts } = await supabaseClient
           .from('ventas')
-          .select('cliente, turnos(nombre_turno), venta_detalle(producto_id, cantidad)')
+          .select('cliente, turnos(nombre_turno), venta_detalle(producto_id, cantidad, precio_unitario)')
           .gte('created_at', dayStart);
         (dayVts || []).forEach(v => {
           const sh = (v.turnos && v.turnos.nombre_turno) ? v.turnos.nombre_turno : 'Turno Mañana (1)';
@@ -1476,6 +1494,7 @@
           (v.venta_detalle || []).forEach(d => {
             if (!statsByShift[sh][d.producto_id]) statsByShift[sh][d.producto_id] = { rep: 0, ven: 0, of: 0 };
             statsByShift[sh][d.producto_id].ven += Number(d.cantidad || 0);
+            statsByShift[sh][d.producto_id].imp = (statsByShift[sh][d.producto_id].imp || 0) + Math.round(Number(d.precio_unitario || 0) * 100) * Number(d.cantidad || 0) / 100;
           });
         });
 
@@ -1498,7 +1517,8 @@
               inicial: initVal,
               reposicion: st.rep,
               venta: st.ven,
-              oferta: st.of
+              oferta: st.of,
+              importeVenta: Math.round(Number(st.imp || 0) * 100) / 100
             };
             running = Math.max(0, initVal + st.rep - st.ven - st.of);
           });
@@ -1513,6 +1533,76 @@
 
     function formatMoney(n) {
       return 'S/ ' + Number(n || 0).toFixed(2);
+    }
+
+    function isPaneton(product) {
+      return String(product?.cd || '').trim().toUpperCase() === 'O3';
+    }
+
+    function saleUnitPrice(product, paymentMethod) {
+      if (!isPaneton(product)) return Number(product.precio);
+      if (paymentMethod === 'YAPE') return 18.90;
+      if (paymentMethod === 'OTRO') return 19.90;
+      return null;
+    }
+
+    function productPriceLabel(product) {
+      return isPaneton(product) ? 'Yape: S/ 18.90 | Otros: S/ 19.90' : formatMoney(product.precio);
+    }
+
+    function productPriceMarkup(product) {
+      return isPaneton(product)
+        ? '<span class="block">Yape: S/ 18.90</span><span class="block text-xs">Otros: S/ 19.90</span>'
+        : formatMoney(product.precio);
+    }
+
+    function recordedPriceLabel(product, csv = false) {
+      const prices = [...(product.salePrices || [])].sort((a, b) => a - b);
+      if (prices.length) return prices.map(price => csv ? price.toFixed(2) : formatMoney(price)).join(' / ');
+      return csv ? (isPaneton(product) ? '18.90 / 19.90' : Number(product.precio).toFixed(2)) : productPriceLabel(product);
+    }
+
+    function paidClientLabel(product, paymentMethod, base) {
+      return isPaneton(product) ? `Pago: ${paymentMethod === 'YAPE' ? 'Yape' : 'Otro medio'} | ${base}` : base;
+    }
+
+    function counterSalesAmount(counter, product) {
+      return Number.isFinite(counter.importeVenta) ? counter.importeVenta : Number(counter.venta || 0) * Number(product.precio);
+    }
+
+    function addPaidShiftSale(counter, product, quantity, unitPrice) {
+      counter.importeVenta = (Math.round(counterSalesAmount(counter, product) * 100) + Math.round(unitPrice * 100) * quantity) / 100;
+      counter.venta += quantity;
+    }
+
+    async function registerPanetonSale({ product, quantity, paymentMethod, responsable, turnoId, cliente, createdAt = null }) {
+      const { data, error } = await supabaseClient.rpc('registrar_venta_panetones', {
+        p_responsable: responsable, p_turno_id: turnoId, p_cliente: cliente,
+        p_producto_id: product.id, p_cantidad: quantity, p_medio_pago: paymentMethod,
+        p_created_at: createdAt
+      });
+      if (error) {
+        if (['PGRST202', '42883'].includes(error.code)) {
+          throw new Error('Ejecuta Configurar_Precios_Panetones_Supabase.sql en Supabase para habilitar ambos precios.');
+        }
+        throw error;
+      }
+      return data;
+    }
+
+    function updateAdminPanetonPayment() {
+      const product = state.products.find(p => p.id === Number(document.getElementById('adminSaleProduct').value));
+      const enabled = isPaneton(product);
+      const select = document.getElementById('adminSalePayment');
+      document.getElementById('adminSalePaymentWrap').classList.toggle('hidden', !enabled);
+      select.required = enabled;
+      select.disabled = !enabled;
+      if (!enabled) select.value = '';
+      const price = enabled ? saleUnitPrice(product, select.value) : null;
+      const quantity = Math.max(1, parseInt(document.getElementById('adminSaleQty').value, 10) || 1);
+      document.getElementById('adminSalePaymentInfo').textContent = price === null
+        ? 'Selecciona el medio de pago que se utilizó en esa venta.'
+        : `${formatMoney(price)} por unidad · Total: ${formatMoney(Math.round(price * 100) * quantity / 100)}`;
     }
 
     let toastTimer = null;
@@ -1735,7 +1825,7 @@
           <td class="py-2.5 px-3 font-mono text-xs font-bold text-slate-600">${p.cd}</td>
           <td class="py-2.5 px-3 font-semibold text-slate-900 text-xs sm:text-sm">${p.nombre}</td>
           <td class="py-2.5 px-3 text-xs text-slate-500">${p.categoria}</td>
-          <td class="py-2.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap">${formatMoney(p.precio)}</td>
+          <td class="py-2.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap">${productPriceMarkup(p)}</td>
           <td class="py-2.5 px-3 text-center">${stockBadge}</td>
           <td class="py-2.5 px-3 text-center">
             ${(p.cd === 'O1' || p.cd === 'O2')
@@ -1787,7 +1877,7 @@
       const sel = document.getElementById('adminSaleProduct');
       if (!sel) return;
       const prev = sel.value;
-      sel.innerHTML = state.products.map(p => `<option value="${p.id}">${p.cd} — ${p.nombre} (${formatMoney(p.precio)} | Stock: ${p.stock})</option>`).join('');
+      sel.innerHTML = state.products.map(p => `<option value="${p.id}">${p.cd} — ${p.nombre} (${productPriceLabel(p)} | Stock: ${p.stock})</option>`).join('');
       if (prev && state.products.some(p => String(p.id) === prev)) sel.value = prev;
       updateAdminSaleOfferToggle();
     }
@@ -1801,6 +1891,7 @@
       const eligible = p && (p.cd === 'O1' || p.cd === 'O2');
       wrap.classList.toggle('hidden', !eligible);
       if (!eligible && chk) chk.checked = false;
+      updateAdminPanetonPayment();
     }
 
     function renderEntradasTable() {
@@ -2429,7 +2520,7 @@
 
       lubBody.innerHTML = lubs.map(p => {
         const c = counters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
-        const imp = report ? c.importe : c.venta * p.precio;
+        const imp = report ? c.importe : counterSalesAmount(c, p);
         totalLub += imp;
         totalUnidVendidas += c.venta;
         const finalStock = report ? c.final : computeShiftFinal(c, p.stock);
@@ -2440,7 +2531,7 @@
           <tr class="text-center">
             <td class="border border-slate-400 py-1 px-2 font-mono font-bold bg-sky-50">${p.cd}</td>
             <td class="border border-slate-400 py-1 px-2 text-left bg-sky-50 font-medium">${p.nombre}</td>
-            <td class="border border-slate-400 py-1 px-2 text-right bg-sky-50">${formatMoney(p.precio)}</td>
+            <td class="border border-slate-400 py-1 px-2 text-right bg-sky-50">${productPriceMarkup(p)}</td>
             <td class="border border-slate-400 py-1 px-2 ${zeroCls}">${c.inicial}</td>
             <td class="border border-slate-400 py-1 px-2">${c.reposicion}</td>
             <td class="border border-slate-400 py-1 px-2 ${ventaCls}">${c.venta}</td>
@@ -2458,7 +2549,7 @@
 
       ofBody.innerHTML = offs.map(p => {
         const c = counters[p.id] || { inicial: p.stock, reposicion: 0, venta: 0, oferta: 0 };
-        const imp = report ? c.importe : c.venta * p.precio;
+        const imp = report ? c.importe : counterSalesAmount(c, p);
         totalOf += imp;
         totalUnidVendidas += c.venta;
         totalOfertasRegaladas += c.oferta;
@@ -2471,7 +2562,7 @@
           <tr class="text-center">
             <td class="border border-slate-400 py-1 px-2 font-mono font-bold bg-sky-50">${p.cd}</td>
             <td class="border border-slate-400 py-1 px-2 text-left bg-sky-50 font-medium">${p.nombre}</td>
-            <td class="border border-slate-400 py-1 px-2 text-right bg-sky-50">${formatMoney(p.precio)}</td>
+            <td class="border border-slate-400 py-1 px-2 text-right bg-sky-50">${productPriceMarkup(p)}</td>
             <td class="border border-slate-400 py-1 px-2 ${zeroCls}">${c.inicial}</td>
             <td class="border border-slate-400 py-1 px-2">${c.reposicion}</td>
             <td class="border border-slate-400 py-1 px-2 ${ventaCls}">${c.venta}</td>
@@ -2882,6 +2973,10 @@
       if (qty > currentSellProd.stock) qty = currentSellProd.stock;
       qtyInput.value = qty;
 
+      const payment = document.getElementById('sellModalPayment');
+      const unitPrice = saleUnitPrice(currentSellProd, payment.value);
+      document.getElementById('sellModalUnitPrice').textContent = unitPrice === null ? 'Elige forma de pago' : formatMoney(unitPrice);
+      document.getElementById('btnConfirmSellModal').disabled = isPaneton(currentSellProd) && unitPrice === null;
       const btnSale = document.getElementById('btnModeSale');
       const btnOffer = document.getElementById('btnModeFreeOffer');
       if (sellMode === 'offer') {
@@ -2891,7 +2986,7 @@
       } else {
         btnSale.className = 'py-2.5 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-900 text-xs font-bold text-center transition';
         btnOffer.className = 'py-2.5 px-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-bold text-center hover:bg-amber-100 transition';
-        document.getElementById('sellModalTotal').textContent = formatMoney(currentSellProd.precio * qty);
+        document.getElementById('sellModalTotal').textContent = unitPrice === null ? 'Elige forma de pago' : formatMoney(Math.round(unitPrice * 100) * qty / 100);
       }
     }
 
@@ -2905,6 +3000,10 @@
       qtyEl.max = prod.stock;
       qtyEl.value = 1;
       document.getElementById('sellModalBoleta').value = '';
+      const payment = document.getElementById('sellModalPayment');
+      payment.value = '';
+      payment.disabled = !isPaneton(prod);
+      document.getElementById('sellModalPaymentWrap').classList.toggle('hidden', !isPaneton(prod));
 
       const isOfferEligible = (prod.cd === 'O1' || prod.cd === 'O2');
       document.getElementById('sellModalOfferChoice').classList.toggle('hidden', !isOfferEligible);
@@ -2924,6 +3023,7 @@
     document.getElementById('btnModeSale').addEventListener('click', () => { sellMode = 'sale'; updateSellModalUI(); });
     document.getElementById('btnModeFreeOffer').addEventListener('click', () => { sellMode = 'offer'; updateSellModalUI(); });
     document.getElementById('sellModalQty').addEventListener('input', updateSellModalUI);
+    document.getElementById('sellModalPayment').addEventListener('change', updateSellModalUI);
     document.getElementById('btnCloseSellModal').addEventListener('click', () => modalSell.classList.add('hidden'));
     document.getElementById('btnCancelSellModal').addEventListener('click', () => modalSell.classList.add('hidden'));
 
@@ -2936,11 +3036,15 @@
       }
 
       const isFreeOffer = sellMode === 'offer' && (currentSellProd.cd === 'O1' || currentSellProd.cd === 'O2');
-      const total = isFreeOffer ? 0 : (currentSellProd.precio * qty);
+      const paymentMethod = document.getElementById('sellModalPayment').value;
+      const unitPrice = saleUnitPrice(currentSellProd, paymentMethod);
+      if (unitPrice === null) { showToast('Selecciona la forma de pago del panetón.'); return; }
+      const total = isFreeOffer ? 0 : Math.round(unitPrice * 100) * qty / 100;
       const boleta = document.getElementById('sellModalBoleta').value.trim().toUpperCase();
-      const clienteStr = isFreeOffer
+      const baseCliente = isFreeOffer
         ? `OFERTA GRATIS (${currentSellProd.cd} x${qty})` + (boleta ? ` | Boleta: ${boleta}` : '')
         : (boleta ? `Boleta: ${boleta}` : 'Cliente general');
+      const clienteStr = paidClientLabel(currentSellProd, paymentMethod, baseCliente);
 
       if (!Array.isArray(state.shiftSaleIds)) state.shiftSaleIds = [];
 
@@ -2966,6 +3070,9 @@
               .single();
             if (errIns) throw errIns;
             newSaleId = insData.id;
+          } else if (isPaneton(currentSellProd)) {
+            newSaleId = await registerPanetonSale({ product: currentSellProd, quantity: qty, paymentMethod,
+              responsable: state.session.responsable, turnoId: state.session.turnoId, cliente: baseCliente });
           } else {
             const { data: rpcId, error } = await supabaseClient.rpc('registrar_venta', {
               p_responsable: state.session.responsable,
@@ -2982,7 +3089,7 @@
             getActiveShiftCounters()[currentSellProd.id] = { inicial: currentSellProd.stock, reposicion: 0, venta: 0, oferta: 0 };
           }
           if (isFreeOffer) getActiveShiftCounters()[currentSellProd.id].oferta += qty;
-          else getActiveShiftCounters()[currentSellProd.id].venta += qty;
+          else addPaidShiftSale(getActiveShiftCounters()[currentSellProd.id], currentSellProd, qty, unitPrice);
 
           modalSell.classList.add('hidden');
           await syncFromSupabase();
@@ -2999,7 +3106,7 @@
         getActiveShiftCounters()[currentSellProd.id] = { inicial: currentSellProd.stock + qty, reposicion: 0, venta: 0, oferta: 0 };
       }
       if (isFreeOffer) getActiveShiftCounters()[currentSellProd.id].oferta += qty;
-      else getActiveShiftCounters()[currentSellProd.id].venta += qty;
+      else addPaidShiftSale(getActiveShiftCounters()[currentSellProd.id], currentSellProd, qty, unitPrice);
 
       const localSaleId = Date.now();
       state.shiftSaleIds.push(localSaleId);
@@ -3011,7 +3118,7 @@
         responsable: state.session.responsable,
         cliente: clienteStr,
         boleta,
-        items: isFreeOffer ? [] : [{ id: currentSellProd.id, cd: currentSellProd.cd, nombre: currentSellProd.nombre, cantidad: qty, precio: currentSellProd.precio }],
+        items: isFreeOffer ? [] : [{ id: currentSellProd.id, cd: currentSellProd.cd, nombre: currentSellProd.nombre, cantidad: qty, precio: unitPrice }],
         regalo: isFreeOffer ? `${currentSellProd.cd} - ${currentSellProd.nombre} (x${qty})` : null,
         total
       });
@@ -3601,7 +3708,9 @@
               }
               prod.stock = newStock;
               if (getActiveShiftCounters()[prod.id]) {
-                getActiveShiftCounters()[prod.id].venta = Math.max(0, getActiveShiftCounters()[prod.id].venta - item.cantidad);
+                const counter = getActiveShiftCounters()[prod.id];
+                counter.importeVenta = Math.max(0, Math.round(counterSalesAmount(counter, prod) * 100) - Math.round(Number(item.precio) * 100) * item.cantidad) / 100;
+                counter.venta = Math.max(0, counter.venta - item.cantidad);
               }
             }
           }
@@ -3867,6 +3976,9 @@
             }
             byProd[cd].units += q;
             byProd[cd].soles += lineTotal;
+            if (!byProd[cd].salePrices) byProd[cd].salePrices = [];
+            const recordedPrice = Number(it.precio);
+            if (Number.isFinite(recordedPrice) && !byProd[cd].salePrices.includes(recordedPrice)) byProd[cd].salePrices.push(recordedPrice);
           }
         });
       });
@@ -3974,7 +4086,7 @@
             <td class="py-1.5 px-2.5 font-mono text-xs font-bold text-slate-700">${r.cd}</td>
             <td class="py-1.5 px-3 font-medium text-slate-900">${r.nombre}</td>
             <td class="py-1.5 px-2.5 text-[11px] text-slate-500">${r.categoria}</td>
-            <td class="py-1.5 px-2.5 text-right">${formatMoney(r.precio)}</td>
+            <td class="py-1.5 px-2.5 text-right">${recordedPriceLabel(r)}</td>
             <td class="py-1.5 px-2.5 text-center font-semibold ${r.entradas > 0 ? 'text-emerald-700' : ''}">${r.entradas > 0 ? '+' + r.entradas : '0'}</td>
             <td class="py-1.5 px-2.5 text-center font-bold ${r.units > 0 ? 'text-indigo-700 bg-indigo-50/60' : ''}">${r.units}</td>
             <td class="py-1.5 px-2.5 text-center font-bold ${r.offers > 0 ? 'text-amber-800 bg-amber-50' : ''}">${r.offers}</td>
@@ -4188,7 +4300,7 @@
       lines.push([esc('3. DETALLE DE LOS 35 PRODUCTOS')].join(','));
       lines.push(['CD', 'Producto', 'Categoria', 'P. Unitario', 'Entradas Mes (+)', 'Unid. Vendidas', 'Ofertas Gratis', 'Stock Actual', 'Total S/'].map(esc).join(','));
       d.allProdArr.forEach(p => {
-        lines.push([p.cd, p.nombre, p.categoria, p.precio.toFixed(2), p.entradas, p.units, p.offers, p.stockActual, p.soles.toFixed(2)].map(esc).join(','));
+        lines.push([p.cd, p.nombre, p.categoria, recordedPriceLabel(p, true), p.entradas, p.units, p.offers, p.stockActual, p.soles.toFixed(2)].map(esc).join(','));
       });
       lines.push([]);
 
@@ -4229,6 +4341,8 @@
       adminSaleDateEl.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
     document.getElementById('adminSaleProduct').addEventListener('change', updateAdminSaleOfferToggle);
+    document.getElementById('adminSalePayment').addEventListener('change', updateAdminPanetonPayment);
+    document.getElementById('adminSaleQty').addEventListener('input', updateAdminPanetonPayment);
 
     document.getElementById('formAdminAddSale').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -4250,11 +4364,16 @@
       }
 
       const isFreeOffer = isOffer && (prod.cd === 'O1' || prod.cd === 'O2');
-      const total = isFreeOffer ? 0 : (prod.precio * qty);
-      const clienteStr = isFreeOffer
+      const paymentMethod = document.getElementById('adminSalePayment').value;
+      const unitPrice = saleUnitPrice(prod, paymentMethod);
+      if (unitPrice === null) { showToast('Selecciona la forma de pago del panetón.'); return; }
+      const total = isFreeOffer ? 0 : Math.round(unitPrice * 100) * qty / 100;
+      const baseCliente = isFreeOffer
         ? `OFERTA GRATIS (${prod.cd} x${qty})` + (boleta ? ` | Boleta: ${boleta}` : '')
         : (boleta ? `Boleta: ${boleta}` : 'Regularización Admin');
-      const targetISO = `${dateVal}T12:00:00`;
+      const clienteStr = paidClientLabel(prod, paymentMethod, baseCliente);
+      const shiftHour = shiftVal.includes('(1)') ? '06' : shiftVal.includes('(2)') ? '14' : '22';
+      const targetISO = isPaneton(prod) ? `${dateVal}T${shiftHour}:00:00-05:00` : `${dateVal}T12:00:00`;
 
       if (supabaseClient) {
         try {
@@ -4280,6 +4399,9 @@
               .single();
             if (errIns) throw errIns;
             saleId = insD.id;
+          } else if (isPaneton(prod)) {
+            saleId = await registerPanetonSale({ product: prod, quantity: qty, paymentMethod,
+              responsable: resp, turnoId: tData.id, cliente: baseCliente, createdAt: targetISO });
           } else {
             const { data: rpcId, error: errR } = await supabaseClient.rpc('registrar_venta', {
               p_responsable: resp,
@@ -4299,7 +4421,7 @@
             const sc = getActiveShiftCounters(shiftVal);
             if (!sc[prod.id]) sc[prod.id] = { inicial: prod.stock, reposicion: 0, venta: 0, oferta: 0 };
             if (isFreeOffer) sc[prod.id].oferta += qty;
-            else sc[prod.id].venta += qty;
+            else addPaidShiftSale(sc[prod.id], prod, qty, unitPrice);
           }
 
           document.getElementById('adminSaleQty').value = '1';
@@ -4318,7 +4440,7 @@
         const sc = getActiveShiftCounters(shiftVal);
         if (!sc[prod.id]) sc[prod.id] = { inicial: prod.stock + qty, reposicion: 0, venta: 0, oferta: 0 };
         if (isFreeOffer) sc[prod.id].oferta += qty;
-        else sc[prod.id].venta += qty;
+        else addPaidShiftSale(sc[prod.id], prod, qty, unitPrice);
       }
 
       state.ventas.unshift({
@@ -4329,7 +4451,7 @@
         responsable: resp,
         cliente: clienteStr,
         boleta,
-        items: isFreeOffer ? [] : [{ id: prod.id, cd: prod.cd, nombre: prod.nombre, cantidad: qty, precio: prod.precio }],
+        items: isFreeOffer ? [] : [{ id: prod.id, cd: prod.cd, nombre: prod.nombre, cantidad: qty, precio: unitPrice }],
         regalo: isFreeOffer ? `${prod.cd} - ${prod.nombre} (x${qty})` : null,
         total
       });
